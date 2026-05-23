@@ -4,7 +4,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/shared/StatusBadge"
 import { formatCLP, formatDate } from "@/lib/utils"
-import { Edit, CreditCard, Users, LogIn, ArrowLeft } from "lucide-react"
+import { Edit, CreditCard, Users, LogIn, ArrowLeft, Webhook } from "lucide-react"
 import ImpersonateButton from "./ImpersonateButton"
 
 export default async function CompanyDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -104,6 +104,12 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
               <Link href={`/admin/companies/${id}/users`}>
                 <Users className="w-5 h-5 text-indigo-600" />
                 <span className="text-xs">Usuarios</span>
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="h-auto py-4 flex-col gap-2">
+              <Link href={`/admin/companies/${id}/integrations`}>
+                <Webhook className="w-5 h-5 text-indigo-600" />
+                <span className="text-xs">Integraciones</span>
               </Link>
             </Button>
           </div>

@@ -62,6 +62,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   const message = mapped.message || mapped.mensaje || ""
   const source = (mapped.source || mapped.origen || "meta") as "meta" | "calendly" | "manual"
 
+  // Auto-extract special fields into custom_fields if not already mapped
+  if (!customFields.empresa && (mapped.empresa || rawBody.empresa)) {
+    customFields.empresa = String(mapped.empresa || rawBody.empresa || "")
+  }
+  if (!customFields.fecha_agenda && (mapped.fecha_agenda || rawBody.fecha_agenda)) {
+    customFields.fecha_agenda = String(mapped.fecha_agenda || rawBody.fecha_agenda || "")
+  }
+  if (!customFields.fecha_registro && (mapped.fecha_registro || rawBody.fecha_registro)) {
+    customFields.fecha_registro = String(mapped.fecha_registro || rawBody.fecha_registro || "")
+  }
+
   if (!email && !firstName) {
     return NextResponse.json({ error: "Se requiere email o nombre" }, { status: 400 })
   }

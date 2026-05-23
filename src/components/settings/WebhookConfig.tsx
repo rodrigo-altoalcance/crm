@@ -16,9 +16,10 @@ import type { WebhookToken } from "@/types/database"
 interface WebhookConfigProps {
   tokens: WebhookToken[]
   webhookBaseUrl: string
+  apiPrefix?: string
 }
 
-export function WebhookConfig({ tokens: initialTokens, webhookBaseUrl }: WebhookConfigProps) {
+export function WebhookConfig({ tokens: initialTokens, webhookBaseUrl, apiPrefix = "/api/settings" }: WebhookConfigProps) {
   const router = useRouter()
   const [tokens, setTokens] = useState<WebhookToken[]>(initialTokens)
   const [newTokenName, setNewTokenName] = useState("")
@@ -42,7 +43,7 @@ export function WebhookConfig({ tokens: initialTokens, webhookBaseUrl }: Webhook
     if (!newTokenName.trim()) return
     setCreating(true)
     try {
-      const res = await fetch("/api/settings/tokens", {
+      const res = await fetch(`${apiPrefix}/tokens`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newTokenName.trim() }),
@@ -68,7 +69,7 @@ export function WebhookConfig({ tokens: initialTokens, webhookBaseUrl }: Webhook
   async function handleRegenerate(token: WebhookToken) {
     setRegenerating(token.id)
     try {
-      const res = await fetch(`/api/settings/tokens/${token.id}`, { method: "POST" })
+      const res = await fetch(`${apiPrefix}/tokens/${token.id}`, { method: "POST" })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         toast.error(data.error || "Error al regenerar")
@@ -89,7 +90,7 @@ export function WebhookConfig({ tokens: initialTokens, webhookBaseUrl }: Webhook
     if (!confirmDelete) return
     setDeleting(true)
     try {
-      const res = await fetch(`/api/settings/tokens/${confirmDelete.id}`, { method: "DELETE" })
+      const res = await fetch(`${apiPrefix}/tokens/${confirmDelete.id}`, { method: "DELETE" })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         toast.error(data.error || "Error al eliminar")
@@ -158,6 +159,7 @@ export function WebhookConfig({ tokens: initialTokens, webhookBaseUrl }: Webhook
             <FieldMappingEditor
               tokenId={token.id}
               initialMapping={token.field_mapping || {}}
+              apiPrefix={apiPrefix}
             />
           </CardContent>
         </Card>

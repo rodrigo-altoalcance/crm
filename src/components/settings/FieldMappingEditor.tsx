@@ -14,17 +14,21 @@ const CRM_FIELDS = [
   { value: "phone", label: "Teléfono" },
   { value: "message", label: "Mensaje" },
   { value: "source", label: "Fuente" },
+  { value: "custom:empresa", label: "Empresa del lead" },
+  { value: "custom:fecha_agenda", label: "Fecha de agenda" },
+  { value: "custom:fecha_registro", label: "Fecha de registro" },
 ]
 
 interface FieldMappingEditorProps {
   tokenId: string
   initialMapping: Record<string, string>
   onSave?: (mapping: Record<string, string>) => void
+  apiPrefix?: string
 }
 
 type MappingRow = { key: string; value: string }
 
-export function FieldMappingEditor({ tokenId, initialMapping, onSave }: FieldMappingEditorProps) {
+export function FieldMappingEditor({ tokenId, initialMapping, onSave, apiPrefix = "/api/settings" }: FieldMappingEditorProps) {
   const [rows, setRows] = useState<MappingRow[]>(
     Object.entries(initialMapping).map(([key, value]) => ({ key, value }))
   )
@@ -51,7 +55,7 @@ export function FieldMappingEditor({ tokenId, initialMapping, onSave }: FieldMap
     }
     setLoading(true)
     try {
-      const res = await fetch(`/api/settings/tokens`, {
+      const res = await fetch(`${apiPrefix}/tokens`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: tokenId, field_mapping: mapping }),
