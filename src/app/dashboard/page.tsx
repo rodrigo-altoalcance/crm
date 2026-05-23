@@ -17,8 +17,21 @@ export default async function DashboardPage() {
 
   if (!companyId) redirect("/login")
 
-  const now = new Date().toISOString()
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+
+  // Fetch final stage IDs and lead IDs separately to avoid subquery issues
+  const { data: finalStages } = await supabase
+    .from("lead_stages")
+    .select("id")
+    .eq("company_id", companyId)
+    .eq("is_final", true)
+  const finalStageIds = (finalStages || []).map((s) => s.id)
+
+  const { data: companyLeads } = await supabase
+    .from("leads")
+    .select("id")
+    .eq("company_id", companyId)
+  const leadIds = (companyLeads || []).map((l) => l.id)
 
   const [
     { count: totalLeads },
@@ -29,21 +42,17 @@ export default async function DashboardPage() {
   ] = await Promise.all([
     supabase.from("leads").select("*", { count: "exact", head: true }).eq("company_id", companyId),
     supabase.from("leads").select("*", { count: "exact", head: true }).eq("company_id", companyId).gte("created_at", weekAgo),
-    supabase.from("leads").select("id", { count: "exact", head: true })
-      .eq("company_id", companyId)
-      .in("stage_id",
-        supabase.from("lead_stages").select("id").eq("company_id", companyId).eq("is_final", true) as any
-      ),
-    supabase.from("tasks").select("*", { count: "exact", head: true })
-      .eq("company_id", companyId)
-      .eq("status", "pending"),
-    supabase.from("lead_activities")
-      .select("*, lead:leads(first_name, last_name), profile:profiles(full_name)")
-      .in("lead_id",
-        supabase.from("leads").select("id").eq("company_id", companyId) as any
-      )
-      .order("created_at", { ascending: false })
-      .limit(8),
+    finalStageIds.length > 0
+      ? supabase.from("leads").select("id", { count: "exact", head: true }).eq("company_id", companyId).in("stage_id", finalStageIds)
+      : Promise.resolve({ count: 0, data: null, error: null, status: 200, statusText: "OK" }),
+    supabase.from("tasks").select("*", { count: "exact", head: true }).eq("company_id", companyId).eq("status", "pending"),
+    leadIds.length > 0
+      ? supabase.from("lead_activities")
+          .select("*, lead:leads(first_name, last_name), profile:profiles(full_name)")
+          .in("lead_id", leadIds)
+          .order("created_at", { ascending: false })
+          .limit(8)
+      : Promise.resolve({ data: [], error: null, status: 200, statusText: "OK" }),
   ])
 
   const activityLabels: Record<string, string> = {
