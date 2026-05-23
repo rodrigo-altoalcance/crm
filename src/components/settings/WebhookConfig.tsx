@@ -17,9 +17,10 @@ interface WebhookConfigProps {
   tokens: WebhookToken[]
   webhookBaseUrl: string
   apiPrefix?: string
+  webhookPath?: string
 }
 
-export function WebhookConfig({ tokens: initialTokens, webhookBaseUrl, apiPrefix = "/api/settings" }: WebhookConfigProps) {
+export function WebhookConfig({ tokens: initialTokens, webhookBaseUrl, apiPrefix = "/api/settings", webhookPath = "/api/webhook/leads/" }: WebhookConfigProps) {
   const router = useRouter()
   const [tokens, setTokens] = useState<WebhookToken[]>(initialTokens)
   const [newTokenName, setNewTokenName] = useState("")
@@ -30,7 +31,7 @@ export function WebhookConfig({ tokens: initialTokens, webhookBaseUrl, apiPrefix
   const [deleting, setDeleting] = useState(false)
 
   function webhookUrl(token: string) {
-    return `${webhookBaseUrl}/api/webhook/leads/${token}`
+    return `${webhookBaseUrl}${webhookPath}${token}`
   }
 
   async function copyToClipboard(text: string) {

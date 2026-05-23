@@ -13,6 +13,7 @@ import type { LeadStage } from "@/types/database"
 
 interface StagesEditorProps {
   initialStages: LeadStage[]
+  apiPrefix?: string
 }
 
 const COLORS = [
@@ -20,7 +21,7 @@ const COLORS = [
   "#3B82F6", "#EF4444", "#14B8A6", "#F97316", "#64748B",
 ]
 
-export function StagesEditor({ initialStages }: StagesEditorProps) {
+export function StagesEditor({ initialStages, apiPrefix = "/api" }: StagesEditorProps) {
   const router = useRouter()
   const [stages, setStages] = useState<LeadStage[]>(initialStages)
   const [dragging, setDragging] = useState<string | null>(null)
@@ -45,7 +46,7 @@ export function StagesEditor({ initialStages }: StagesEditorProps) {
   async function saveEdit(stage: LeadStage) {
     if (!editName.trim()) return
     try {
-      const res = await fetch(`/api/stages/${stage.id}`, {
+      const res = await fetch(`${apiPrefix}/stages/${stage.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: editName.trim(), color: editColor }),
@@ -67,7 +68,7 @@ export function StagesEditor({ initialStages }: StagesEditorProps) {
 
   async function toggleFlag(stage: LeadStage, flag: "is_final" | "is_lost") {
     try {
-      const res = await fetch(`/api/stages/${stage.id}`, {
+      const res = await fetch(`${apiPrefix}/stages/${stage.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ [flag]: !stage[flag] }),
@@ -88,7 +89,7 @@ export function StagesEditor({ initialStages }: StagesEditorProps) {
     if (!deleting) return
     setLoading(true)
     try {
-      const res = await fetch(`/api/stages/${deleting.id}`, { method: "DELETE" })
+      const res = await fetch(`${apiPrefix}/stages/${deleting.id}`, { method: "DELETE" })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         toast.error(data.error || "No se puede eliminar")
@@ -111,7 +112,7 @@ export function StagesEditor({ initialStages }: StagesEditorProps) {
     setLoading(true)
     try {
       const maxPos = stages.reduce((max, s) => Math.max(max, s.position), -1)
-      const res = await fetch("/api/stages", {
+      const res = await fetch(`${apiPrefix}/stages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: addingName.trim(), color: addingColor, position: maxPos + 1 }),
@@ -165,7 +166,7 @@ export function StagesEditor({ initialStages }: StagesEditorProps) {
     setDragOver(null)
 
     try {
-      await fetch("/api/stages", {
+      await fetch(`${apiPrefix}/stages`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updated.map((s) => ({ id: s.id, position: s.position }))),

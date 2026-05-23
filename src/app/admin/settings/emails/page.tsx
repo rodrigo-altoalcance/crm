@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Plus } from "lucide-react"
+import { Plus } from "lucide-react"
 import { EmailTemplateList } from "./EmailTemplateList"
 
 export default async function EmailTemplatesPage() {
@@ -11,9 +11,6 @@ export default async function EmailTemplatesPage() {
 
   return (
     <div className="p-8">
-      <Link href="/admin/settings" className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 mb-6">
-        <ArrowLeft className="w-4 h-4" /> Volver a Configuración
-      </Link>
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Templates de email</h1>

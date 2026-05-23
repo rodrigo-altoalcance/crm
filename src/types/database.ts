@@ -163,3 +163,44 @@ export interface CrmSetting {
   value: string
   updated_at: string
 }
+
+export interface AgencyStage {
+  id: string
+  name: string
+  color: string
+  position: number
+  is_final: boolean
+  is_lost: boolean
+  created_at: string
+}
+
+export interface AgencyWebhookToken {
+  id: string
+  token: string
+  name: string
+  field_mapping: Record<string, string>
+  created_at: string
+}
+
+export interface AdminAuditLog {
+  id: string
+  user_id: string | null
+  user_name: string | null
+  action: string
+  section: string
+  details: Record<string, unknown> | null
+  created_at: string
+}
+
+export interface AgencyLead {
+  id: string
+  stage_id: string | null
+  first_name: string | null
+  last_name: string | null
+  email: string | null
+  phone: string | null
+  source: string | null
+  message: string | null
+  custom_fields: Record<string, string>
+  created_at: string
+}

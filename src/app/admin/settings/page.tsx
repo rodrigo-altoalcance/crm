@@ -10,8 +10,8 @@ export default async function AdminSettingsPage() {
   return (
     <div className="p-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900">Configuración</h1>
-        <p className="text-sm text-slate-500 mt-1">Configuración general de la agencia</p>
+        <h1 className="text-2xl font-bold text-slate-900">General</h1>
+        <p className="text-sm text-slate-500 mt-1">Configuración global del sistema</p>
       </div>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <AdminSettingsForm settings={settingsMap} />
