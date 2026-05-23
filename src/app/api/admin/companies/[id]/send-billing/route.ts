@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/auth/getProfile"
-import { Resend } from "resend"
-import { formatCLP } from "@/lib/utils"
-import { formatDate } from "@/lib/utils"
+import { sendEmail } from "@/lib/email/mailer"
+import { formatCLP, formatDate } from "@/lib/utils"
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -24,13 +23,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   const settingsMap = Object.fromEntries((settings || []).map((s: any) => [s.key, s.value]))
-  const apiKey = settingsMap.resend_api_key
-  const agencyEmail = settingsMap.agency_email || "noreply@alto-alcance.com"
-  const agencyName = settingsMap.agency_name || "Alto Alcance"
-
-  if (!apiKey) {
-    return NextResponse.json({ error: "Resend API Key no configurada en Ajustes" }, { status: 400 })
-  }
+  const agencyEmail = settingsMap.agency_email || "noreply@altoalcance.cl"
+  const agencyName = settingsMap.agency_name || "Alto Alcance CRM"
 
   const nextPaymentDate = company.next_payment_date
     ? formatDate(company.next_payment_date)
@@ -47,22 +41,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     .replace(/\{\{agencia_nombre\}\}/g, agencyName)
     .replace(/\{\{cliente_nombre\}\}/g, company.name)
 
-  const resend = new Resend(apiKey)
   const emailTo = company.email || company.org_email
 
   if (!emailTo) {
     return NextResponse.json({ error: "La empresa no tiene email configurado" }, { status: 400 })
   }
 
-  const { error } = await resend.emails.send({
-    from: `${agencyName} <${agencyEmail}>`,
-    to: emailTo,
-    subject,
-    html,
-  })
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  try {
+    await sendEmail({ to: emailTo, subject, html })
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 })
   }
 
   return NextResponse.json({ success: true })
