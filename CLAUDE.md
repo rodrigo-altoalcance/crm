@@ -7,7 +7,8 @@
 - **Supabase** (PostgreSQL + Auth + RLS) — proyecto `gjpixwdfxglekkkapklt`
 - **Tailwind CSS v4** + shadcn/ui manual (sin CLI de red)
 - **@supabase/ssr 0.10.3** — cliente server en `src/lib/supabase/server.ts`, browser en `client.ts`
-- **Resend 6.x** para emails, **Sonner** para toasts, **@hello-pangea/dnd** para Kanban
+- **Resend 6.x** — mailer base en `src/lib/email/mailer.ts`, remitente fijo `Alto Alcance CRM <noreply@altoalcance.cl>`, clave en `RESEND_API_KEY`
+- **Sonner** para toasts, **@hello-pangea/dnd** para Kanban
 - **Deploy**: Vercel (`crm30.vercel.app`) conectado a `rodrigo-altoalcance/crm` rama `main`
 
 ## Roles
@@ -40,7 +41,8 @@ src/
 │       ├── leads/[id]/         # stage, activities, tasks
 │       ├── webhook/leads/[token]/  # Público — Make.com
 │       ├── team/, tasks/, stages/
-│       └── settings/           # tokens, field-definitions, organization
+│       ├── admin/test-email/   # POST — prueba de envío (solo super_admin)
+       └── settings/           # tokens, field-definitions, organization
 ├── components/
 │   ├── ui/                     # shadcn manual: button, card, dialog, etc.
 │   ├── admin/                  # CompanyForm, ClientPaymentPanel, AdminSidebar, etc.
@@ -53,6 +55,7 @@ src/
 └── lib/
     ├── supabase/{client,server,admin,middleware}.ts
     ├── auth/{getProfile,roles}.ts
+    ├── email/mailer.ts         # sendEmail({ to, subject, html }) — usa RESEND_API_KEY
     └── utils.ts                # cn(), formatCLP(), formatDate()
 ```
 
@@ -100,7 +103,7 @@ lead_field_definitions  id, company_id, name, label, type, options(jsonb), posit
 client_records     id, lead_id, company_id, title, description, type, record_date
 payments           id, company_id, amount, currency, paid_at (super_admin only)
 email_templates    id, name, subject, body_html, is_default
-crm_settings       key, value  (agency_name, agency_email, resend_api_key)
+crm_settings       key, value  (agency_name, agency_email)  — resend_api_key ya NO se guarda aquí, va en env var
 ```
 
 ## Permisos sellers (profiles.permissions jsonb)
@@ -108,6 +111,20 @@ crm_settings       key, value  (agency_name, agency_email, resend_api_key)
 {"can_view_all_leads": true, "can_create_leads": true, "can_edit_leads": true,
  "can_delete_leads": false, "can_close_leads": true, "can_view_reports": true, "can_manage_stages": false}
 ```
+
+## Email — Resend
+
+### Mailer base
+```typescript
+import { sendEmail } from "@/lib/email/mailer"
+await sendEmail({ to: "...", subject: "...", html: "..." })
+```
+- Remitente siempre fijo: `Alto Alcance CRM <noreply@altoalcance.cl>`
+- Variable de entorno: `RESEND_API_KEY` (en `.env.local` local y en Vercel)
+- Lanza error descriptivo si la key no está configurada
+
+### Ruta de prueba
+`POST /api/admin/test-email` — solo `super_admin`, body: `{ "to": "email@ejemplo.com" }`
 
 ## Flujos especiales
 - **Cierre de lead**: etapa con `is_final=true` → aparece automáticamente en módulo Clientes
