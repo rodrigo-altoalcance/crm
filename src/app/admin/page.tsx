@@ -8,6 +8,13 @@ import { Badge } from "@/components/ui/badge"
 export default async function AdminDashboard() {
   const supabase = await createClient()
 
+  const { data: finalStages } = await supabase
+    .from("lead_stages")
+    .select("id")
+    .eq("is_final", true)
+
+  const finalStageIds = finalStages?.map((s) => s.id) || []
+
   const [
     { data: companies },
     { count: totalLeads },
@@ -17,8 +24,9 @@ export default async function AdminDashboard() {
   ] = await Promise.all([
     supabase.from("companies").select("id, name, status, monthly_fee, currency, next_payment_date").eq("status", "active"),
     supabase.from("leads").select("*", { count: "exact", head: true }),
-    supabase.from("leads").select("id", { count: "exact", head: true })
-      .in("stage_id", supabase.from("lead_stages").select("id").eq("is_final", true) as any),
+    finalStageIds.length > 0
+      ? supabase.from("leads").select("id", { count: "exact", head: true }).in("stage_id", finalStageIds)
+      : Promise.resolve({ count: 0, data: null, error: null, status: 200, statusText: "OK" }),
     supabase.from("payments").select("*, company:companies(name)").order("paid_at", { ascending: false }).limit(5),
     supabase.from("companies")
       .select("id, name, monthly_fee, currency, next_payment_date")
