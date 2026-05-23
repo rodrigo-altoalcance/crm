@@ -36,17 +36,19 @@ src/
 │   │   └── settings/           # Etapas, Org, Integraciones, Campos
 │   └── api/
 │       ├── admin/              # companies, leads, clients, impersonate, email-templates
+│       │   └── companies/[companyId]/tokens/  # CRUD tokens webhook (super_admin, sin impersonar)
 │       ├── leads/[id]/         # stage, activities, tasks
 │       ├── webhook/leads/[token]/  # Público — Make.com
 │       ├── team/, tasks/, stages/
 │       └── settings/           # tokens, field-definitions, organization
 ├── components/
 │   ├── ui/                     # shadcn manual: button, card, dialog, etc.
-│   ├── admin/                  # CompanyForm, ClientPaymentPanel, etc.
+│   ├── admin/                  # CompanyForm, ClientPaymentPanel, AdminSidebar, etc.
 │   ├── leads/                  # LeadsKanban, LeadDetailPanel, CloseLeadConfirmDialog
 │   ├── dashboard/              # DashboardSidebar, ImpersonationBanner
 │   ├── clients/                # ClientsTable, ClientRecordsPanel
-│   ├── tasks/, team/, settings/
+│   ├── tasks/, team/
+│   ├── settings/               # WebhookConfig, FieldMappingEditor, StagesEditor, OrganizationForm, FieldsEditor
 │   └── shared/                 # EmptyState, ConfirmDialog, StatusBadge, PriorityBadge
 └── lib/
     ├── supabase/{client,server,admin,middleware}.ts
@@ -110,8 +112,46 @@ crm_settings       key, value  (agency_name, agency_email, resend_api_key)
 ## Flujos especiales
 - **Cierre de lead**: etapa con `is_final=true` → aparece automáticamente en módulo Clientes
 - **Impersonación**: `POST /api/admin/impersonate` → cookie `impersonated_company` → super_admin ve el portal de la empresa
-- **Webhook Make.com**: `POST /api/webhook/leads/[token]` (público) → mapea campos via `field_mapping` del token
+- **Webhook Make.com**: `POST /api/webhook/leads/[token]` (público) → mapea campos via `field_mapping` del token → asigna lead a primera etapa del pipeline
 - **Pagos**: solo super_admin puede ver/crear pagos — RLS lo bloquea para otros roles
+
+## Integraciones webhook — arquitectura
+
+### Acceso por rol
+| Rol | Ruta | API usada |
+|-----|------|-----------|
+| `company_admin` | `/dashboard/settings/integrations` | `/api/settings/tokens` (lee cookie `impersonated_company`) |
+| `super_admin` | `/admin/companies/[id]/integrations` | `/api/admin/companies/[companyId]/tokens` (sin cookie, `createAdminClient`) |
+
+### Componentes reutilizables
+- `WebhookConfig` acepta prop `apiPrefix` (default `/api/settings`) — úsalo para apuntar a distinto backend
+- `FieldMappingEditor` acepta prop `apiPrefix` igual — propagar siempre desde `WebhookConfig`
+
+### Campos soportados en el webhook
+Campos estándar (van a columnas del lead): `first_name/nombre`, `last_name/apellido`, `email/correo`, `phone/telefono/fono`, `message/mensaje`, `source/origen`
+
+Campos especiales (van a `custom_fields` jsonb, auto-detectados sin mapeo):
+- `empresa` — nombre de la empresa del lead
+- `fecha_agenda` — fecha de la cita/reunión agendada
+- `fecha_registro` — fecha en que se registró el lead en el sistema origen
+
+### Mapeo de campos
+El `field_mapping` del token convierte claves del payload entrante → campos CRM.
+Si la clave CRM empieza con `custom:` → va a `custom_fields[key]`. De lo contrario → campo directo del lead.
+```typescript
+// Ejemplo: Make envía { "scheduled": "2025-06-01" }
+// field_mapping: { "scheduled": "custom:fecha_agenda" }
+// Resultado: lead.custom_fields.fecha_agenda = "2025-06-01"
+```
+
+### API admin de tokens (super_admin, usa createAdminClient — bypasea RLS)
+```
+GET    /api/admin/companies/[companyId]/tokens         → lista tokens
+POST   /api/admin/companies/[companyId]/tokens         → crea token { name }
+PATCH  /api/admin/companies/[companyId]/tokens         → actualiza field_mapping { id, field_mapping }
+DELETE /api/admin/companies/[companyId]/tokens/[id]    → elimina token
+POST   /api/admin/companies/[companyId]/tokens/[id]    → regenera token (elimina y recrea)
+```
 
 ## Convenciones UI
 - Sidebar oscuro (`#0F172A`), accent `#6366F1` (indigo-500), fondo `#F8FAFC`
