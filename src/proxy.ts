@@ -1,43 +1,56 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { updateSession } from "@/lib/supabase/middleware"
-import { createServerClient } from "@supabase/ssr"
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   const { supabase, user, supabaseResponse } = await updateSession(request)
 
+  // Unauthenticated: only allow /login and /api/webhook
   if (!user) {
-    if (pathname.startsWith("/admin") || pathname.startsWith("/dashboard")) {
+    if (pathname === "/" || pathname.startsWith("/admin") || pathname.startsWith("/dashboard")) {
       return NextResponse.redirect(new URL("/login", request.url))
     }
     return supabaseResponse
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single()
+  // Get role — fall back gracefully if query fails
+  let role: string | undefined
+  try {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single()
+    role = profile?.role
+  } catch {
+    // If we can't determine role, let page-level auth handle it
+    return supabaseResponse
+  }
 
-  const role = profile?.role
+  // Root path: redirect based on role
+  if (pathname === "/") {
+    if (role === "super_admin") return NextResponse.redirect(new URL("/admin", request.url))
+    return NextResponse.redirect(new URL("/dashboard", request.url))
+  }
 
+  // Login page: authenticated users should not see it
+  if (pathname === "/login") {
+    if (role === "super_admin") return NextResponse.redirect(new URL("/admin", request.url))
+    return NextResponse.redirect(new URL("/dashboard", request.url))
+  }
+
+  // Admin: only super_admin allowed
   if (pathname.startsWith("/admin") && role !== "super_admin") {
     return NextResponse.redirect(new URL("/dashboard", request.url))
   }
 
+  // Dashboard: super_admin needs impersonation cookie
   if (pathname.startsWith("/dashboard") && role === "super_admin") {
     const impersonated = request.cookies.get("impersonated_company")
     if (!impersonated) {
       return NextResponse.redirect(new URL("/admin", request.url))
     }
-  }
-
-  if (pathname === "/login" && user) {
-    if (role === "super_admin") {
-      return NextResponse.redirect(new URL("/admin", request.url))
-    }
-    return NextResponse.redirect(new URL("/dashboard", request.url))
   }
 
   return supabaseResponse

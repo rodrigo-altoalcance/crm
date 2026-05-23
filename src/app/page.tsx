@@ -1,5 +1,4 @@
-import { redirect } from "next/navigation"
-
+// Root path routing handled by src/proxy.ts
 export default function Home() {
-  redirect("/login")
+  return null
 }
