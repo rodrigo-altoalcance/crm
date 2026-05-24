@@ -14,7 +14,7 @@
 ## Roles
 | Rol | Acceso |
 |-----|--------|
-| `super_admin` | `/admin/*` — Empresas, Leads, Clientes, Config, Emails |
+| `super_admin` | `/admin/*` — Usuario Empresa, Leads, Clientes, Config, Emails |
 | `company_admin` | `/dashboard/*` — Leads, Clientes, Equipo, Config |
 | `seller` | `/dashboard/*` — según permisos en `profiles.permissions` (jsonb) |
 
@@ -25,7 +25,7 @@ src/
 ├── app/
 │   ├── (auth)/login/           # Login público
 │   ├── admin/                  # Panel super_admin
-│   │   ├── companies/          # CRUD empresas + pagos + usuarios
+│   │   ├── companies/          # CRUD usuario empresa (antes "Empresas") + pagos + usuarios
 │   │   ├── leads/              # Leads globales
 │   │   ├── clients/            # Leads cerrados + config de pagos
 │   │   └── settings/emails/    # Templates de email: bienvenida + cobranza (Resend)
@@ -139,9 +139,17 @@ import { sendWelcomeEmail } from "@/lib/email/welcome"
 await sendWelcomeEmail({ to, companyName, verificationLink })
 ```
 - Se dispara en `POST /api/admin/companies/[id]/users`
-- Usa `adminClient.auth.admin.generateLink({ type: 'invite', email, options: { data: {...} } })` para obtener el link de activación **sin** que Supabase envíe su email genérico
+- El formulario (`InviteUserForm`) requiere: `full_name`, `email`, `password`, `confirm_password` (todos obligatorios), rol por defecto `company_admin`
+- La API usa `adminClient.auth.admin.generateLink({ type: 'signup', email, password, options: { data: {...} } })` — crea el usuario con contraseña **y** genera el link de confirmación en una sola llamada
+- El usuario queda con email **no confirmado**: no puede ingresar hasta hacer clic en el link
 - `linkData.properties.action_link` es el `{{link_verificacion}}`
 - Si el envío falla, loguea el error pero **no bloquea** la creación del usuario (try/catch)
+
+### Módulo "Usuario Empresa" (ruta `/admin/companies`)
+- La UI usa el término **"Usuario Empresa"** (no "Empresas") en menú, títulos y breadcrumbs
+- El módulo gestiona: datos de la empresa, pagos, usuarios y tokens webhook
+- Al crear un usuario desde `/admin/companies/[id]/users`, el rol por defecto es `company_admin`
+- Flujo de activación: admin crea usuario con contraseña → Supabase crea cuenta sin confirmar → se envía email de bienvenida con link → usuario hace clic → cuenta activada
 
 ## Flujos especiales
 - **Cierre de lead**: etapa con `is_final=true` → aparece automáticamente en módulo Clientes
