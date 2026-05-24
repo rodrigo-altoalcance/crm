@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import {
   LayoutDashboard, Building2, Users, CreditCard, Zap,
-  Settings, Mail, LogOut, ChevronRight,
+  Settings, Mail, LogOut, ChevronRight, UserCog,
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
@@ -15,6 +15,7 @@ const nav = [
   { href: "/admin/companies", label: "Usuario Empresa", icon: Building2 },
   { href: "/admin/leads", label: "Leads", icon: Zap },
   { href: "/admin/clients", label: "Clientes", icon: Users },
+  { href: "/admin/team", label: "Equipo", icon: UserCog },
   { href: "/admin/settings", label: "Configuración", icon: Settings },
 ]
 
