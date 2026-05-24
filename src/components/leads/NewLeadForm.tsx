@@ -14,9 +14,11 @@ import type { LeadStage, Profile } from "@/types/database"
 interface NewLeadFormProps {
   stages: LeadStage[]
   teamMembers: Profile[]
+  redirectPath?: string
+  apiPath?: string
 }
 
-export function NewLeadForm({ stages, teamMembers }: NewLeadFormProps) {
+export function NewLeadForm({ stages, teamMembers, redirectPath = "/dashboard/leads", apiPath = "/api/leads" }: NewLeadFormProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
@@ -39,7 +41,7 @@ export function NewLeadForm({ stages, teamMembers }: NewLeadFormProps) {
     if (!form.first_name.trim() || !form.last_name.trim() || !form.email.trim()) return
     setLoading(true)
     try {
-      const res = await fetch("/api/leads", {
+      const res = await fetch(apiPath, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -55,7 +57,7 @@ export function NewLeadForm({ stages, teamMembers }: NewLeadFormProps) {
         return
       }
       toast.success("Lead creado correctamente")
-      router.push("/dashboard/leads")
+      router.push(redirectPath)
     } catch {
       toast.error("Error de red")
     } finally {
@@ -184,7 +186,7 @@ export function NewLeadForm({ stages, teamMembers }: NewLeadFormProps) {
             <Button
               type="button"
               variant="outline"
-              onClick={() => router.push("/dashboard/leads")}
+              onClick={() => router.push(redirectPath)}
               disabled={loading}
             >
               Cancelar

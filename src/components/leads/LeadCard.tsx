@@ -11,11 +11,11 @@ const sourceLabels: Record<string, { label: string; color: string }> = {
   manual: { label: "Manual", color: "secondary" },
 }
 
-export function LeadCard({ lead }: { lead: Lead }) {
+export function LeadCard({ lead, basePath = "/dashboard/leads" }: { lead: Lead; basePath?: string }) {
   const source = sourceLabels[lead.source] || sourceLabels.manual
 
   return (
-    <Link href={`/dashboard/leads/${lead.id}`}>
+    <Link href={`${basePath}/${lead.id}`}>
       <div className="bg-white rounded-lg border border-slate-200 p-3 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all duration-150 cursor-pointer">
         <div className="flex items-start justify-between gap-2 mb-2">
           <p className="text-sm font-semibold text-slate-900 leading-tight">

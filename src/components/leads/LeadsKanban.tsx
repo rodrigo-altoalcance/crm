@@ -13,9 +13,11 @@ interface LeadsKanbanProps {
   stages: LeadStage[]
   profile: Profile
   companyId: string
+  basePath?: string
+  apiPrefix?: string
 }
 
-export function LeadsKanban({ leads: initialLeads, stages, profile, companyId }: LeadsKanbanProps) {
+export function LeadsKanban({ leads: initialLeads, stages, profile, companyId, basePath = "/dashboard/leads", apiPrefix = "/api" }: LeadsKanbanProps) {
   const [leads, setLeads] = useState(initialLeads)
   const [closingLead, setClosingLead] = useState<Lead | null>(null)
   const [pendingStageId, setPendingStageId] = useState<string | null>(null)
@@ -46,7 +48,7 @@ export function LeadsKanban({ leads: initialLeads, stages, profile, companyId }:
       prev.map((l) => l.id === leadId ? { ...l, stage_id: stageId } : l)
     )
 
-    const res = await fetch(`/api/leads/${leadId}/stage`, {
+    const res = await fetch(`${apiPrefix}/leads/${leadId}/stage`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ stage_id: stageId }),
@@ -115,7 +117,7 @@ export function LeadsKanban({ leads: initialLeads, stages, profile, companyId }:
                               {...provided.dragHandleProps}
                               className={snapshot.isDragging ? "rotate-1 shadow-lg" : ""}
                             >
-                              <LeadCard lead={lead} />
+                              <LeadCard lead={lead} basePath={basePath} />
                             </div>
                           )}
                         </Draggable>

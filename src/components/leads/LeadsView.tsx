@@ -13,9 +13,11 @@ interface LeadsViewProps {
   teamMembers: Pick<Profile, "id" | "full_name" | "avatar_url">[]
   profile: Profile
   companyId: string
+  basePath?: string
+  apiPrefix?: string
 }
 
-export function LeadsView({ leads, stages, teamMembers, profile, companyId }: LeadsViewProps) {
+export function LeadsView({ leads, stages, teamMembers, profile, companyId, basePath = "/dashboard/leads", apiPrefix = "/api" }: LeadsViewProps) {
   const [view, setView] = useState<"kanban" | "table">("kanban")
 
   return (
@@ -42,9 +44,9 @@ export function LeadsView({ leads, stages, teamMembers, profile, companyId }: Le
       </div>
 
       {view === "kanban" ? (
-        <LeadsKanban leads={leads} stages={stages} profile={profile} companyId={companyId} />
+        <LeadsKanban leads={leads} stages={stages} profile={profile} companyId={companyId} basePath={basePath} apiPrefix={apiPrefix} />
       ) : (
-        <LeadsTable leads={leads} stages={stages} teamMembers={teamMembers} />
+        <LeadsTable leads={leads} stages={stages} teamMembers={teamMembers} basePath={basePath} apiPrefix={apiPrefix} />
       )}
     </div>
   )

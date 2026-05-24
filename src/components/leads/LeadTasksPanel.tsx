@@ -18,9 +18,10 @@ interface LeadTasksPanelProps {
   tasks: Task[]
   teamMembers: Pick<Profile, "id" | "full_name">[]
   companyId: string
+  apiPrefix?: string
 }
 
-export function LeadTasksPanel({ leadId, tasks, teamMembers, companyId }: LeadTasksPanelProps) {
+export function LeadTasksPanel({ leadId, tasks, teamMembers, companyId, apiPrefix = "/api" }: LeadTasksPanelProps) {
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
@@ -40,7 +41,7 @@ export function LeadTasksPanel({ leadId, tasks, teamMembers, companyId }: LeadTa
     e.preventDefault()
     if (!form.title.trim()) return
     setLoading(true)
-    const res = await fetch(`/api/leads/${leadId}/tasks`, {
+    const res = await fetch(`${apiPrefix}/leads/${leadId}/tasks`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...form, assigned_to: form.assigned_to || null, due_date: form.due_date || null }),

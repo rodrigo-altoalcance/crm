@@ -18,6 +18,8 @@ interface LeadDetailPanelProps {
   stages: LeadStage[]
   teamMembers: Pick<Profile, "id" | "full_name" | "avatar_url">[]
   profile: Profile
+  apiPrefix?: string
+  closedRedirectPath?: string
 }
 
 const sourceLabels: Record<string, string> = {
@@ -26,7 +28,7 @@ const sourceLabels: Record<string, string> = {
   manual: "Manual",
 }
 
-export function LeadDetailPanel({ lead, stages, teamMembers, profile }: LeadDetailPanelProps) {
+export function LeadDetailPanel({ lead, stages, teamMembers, profile, apiPrefix = "/api", closedRedirectPath = "/dashboard/clients" }: LeadDetailPanelProps) {
   const router = useRouter()
   const [closingLead, setClosingLead] = useState(false)
   const [pendingStageId, setPendingStageId] = useState<string | null>(null)
@@ -48,7 +50,7 @@ export function LeadDetailPanel({ lead, stages, teamMembers, profile }: LeadDeta
 
   async function updateStage(stageId: string) {
     setLoading(true)
-    const res = await fetch(`/api/leads/${lead.id}/stage`, {
+    const res = await fetch(`${apiPrefix}/leads/${lead.id}/stage`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ stage_id: stageId }),
@@ -68,7 +70,7 @@ export function LeadDetailPanel({ lead, stages, teamMembers, profile }: LeadDeta
     setClosingLead(false)
     setPendingStageId(null)
     toast.success("Lead cerrado y movido a Clientes")
-    router.push("/dashboard/clients")
+    router.push(closedRedirectPath)
   }
 
   const currentStage = stages.find((s) => s.id === currentStageId)

@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { MessageSquare } from "lucide-react"
 
-export function LeadNoteForm({ leadId }: { leadId: string }) {
+export function LeadNoteForm({ leadId, apiPrefix = "/api" }: { leadId: string; apiPrefix?: string }) {
   const [note, setNote] = useState("")
   const [loading, setLoading] = useState(false)
   const router = useRouter()
@@ -17,7 +17,7 @@ export function LeadNoteForm({ leadId }: { leadId: string }) {
     e.preventDefault()
     if (!note.trim()) return
     setLoading(true)
-    const res = await fetch(`/api/leads/${leadId}/activities`, {
+    const res = await fetch(`${apiPrefix}/leads/${leadId}/activities`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ description: note, type: "note_added" }),
