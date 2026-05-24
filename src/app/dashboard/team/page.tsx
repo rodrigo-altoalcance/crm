@@ -42,6 +42,7 @@ export default async function TeamPage() {
         members={members || []}
         companyId={companyId}
         currentUserRole={profile.role}
+        currentUserId={profile.id}
         maxUsers={company?.max_users || 10}
       />
     </div>

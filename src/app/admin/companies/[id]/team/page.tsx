@@ -48,6 +48,7 @@ export default async function AdminCompanyTeamPage({
         members={(members || []) as Profile[]}
         companyId={id}
         currentUserRole="super_admin"
+        currentUserId={profile.id}
         maxUsers={company.max_users}
         apiPrefix={`/api/admin/companies/${id}`}
         permissionsBasePath={`/admin/companies/${id}/team`}

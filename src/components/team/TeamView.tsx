@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { UserPlus, Settings } from "lucide-react"
+import { UserPlus, Settings, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -16,7 +16,9 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
 import { InviteTeamMemberForm } from "./InviteTeamMemberForm"
+import { toast } from "sonner"
 import type { Profile, Role } from "@/types/database"
 
 const roleLabels: Record<Role, string> = {
@@ -49,14 +51,17 @@ interface TeamViewProps {
   members: Profile[]
   companyId: string
   currentUserRole: Role
+  currentUserId?: string
   maxUsers: number
   apiPrefix?: string
   permissionsBasePath?: string
 }
 
-export function TeamView({ members, companyId, currentUserRole, maxUsers, apiPrefix = "/api", permissionsBasePath = "/dashboard/team" }: TeamViewProps) {
+export function TeamView({ members, companyId, currentUserRole, currentUserId, maxUsers, apiPrefix = "/api", permissionsBasePath = "/dashboard/team" }: TeamViewProps) {
   const router = useRouter()
   const [inviteOpen, setInviteOpen] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [loadingDelete, setLoadingDelete] = useState(false)
   const canInvite = currentUserRole === "company_admin" || currentUserRole === "super_admin"
   const atLimit = members.length >= maxUsers
 
@@ -64,6 +69,28 @@ export function TeamView({ members, companyId, currentUserRole, maxUsers, apiPre
     setInviteOpen(false)
     router.refresh()
   }
+
+  async function handleDelete() {
+    if (!deletingId) return
+    setLoadingDelete(true)
+    try {
+      const res = await fetch(`${apiPrefix}/team/${deletingId}`, { method: "DELETE" })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        toast.error(data.error || "Error al eliminar el miembro")
+        return
+      }
+      toast.success("Miembro eliminado del equipo")
+      router.refresh()
+    } catch {
+      toast.error("Error de red")
+    } finally {
+      setLoadingDelete(false)
+      setDeletingId(null)
+    }
+  }
+
+  const deletingMember = members.find((m) => m.id === deletingId)
 
   return (
     <>
@@ -124,13 +151,25 @@ export function TeamView({ members, companyId, currentUserRole, maxUsers, apiPre
                   )}
                 </TableCell>
                 <TableCell>
-                  {canInvite && member.role === "seller" && (
-                    <Link href={`${permissionsBasePath}/${member.id}/permissions`}>
-                      <Button variant="ghost" size="sm">
-                        <Settings className="w-4 h-4" />
+                  <div className="flex items-center gap-1">
+                    {canInvite && member.role === "seller" && (
+                      <Link href={`${permissionsBasePath}/${member.id}/permissions`}>
+                        <Button variant="ghost" size="icon">
+                          <Settings className="w-4 h-4" />
+                        </Button>
+                      </Link>
+                    )}
+                    {canInvite && member.id !== currentUserId && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-slate-400 hover:text-red-600"
+                        onClick={() => setDeletingId(member.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
                       </Button>
-                    </Link>
-                  )}
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -146,6 +185,17 @@ export function TeamView({ members, companyId, currentUserRole, maxUsers, apiPre
           <InviteTeamMemberForm companyId={companyId} onSuccess={handleInviteSuccess} apiPrefix={apiPrefix} />
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!deletingId}
+        onOpenChange={(open) => { if (!open) setDeletingId(null) }}
+        title="Eliminar miembro"
+        description={`¿Eliminar a ${deletingMember?.full_name} del equipo? Perderá acceso inmediatamente.`}
+        confirmLabel="Eliminar"
+        onConfirm={handleDelete}
+        loading={loadingDelete}
+        variant="destructive"
+      />
     </>
   )
 }
