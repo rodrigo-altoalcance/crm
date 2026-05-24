@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import { StagesEditor } from "@/components/settings/StagesEditor"
+import { SeedStagesButton } from "./SeedStagesButton"
 
 export default async function AdminCompanyStagesPage({
   params,
@@ -24,6 +25,8 @@ export default async function AdminCompanyStagesPage({
 
   if (!company) notFound()
 
+  const hasStages = (stages?.length ?? 0) > 0
+
   return (
     <div className="p-8 max-w-2xl">
       <Link
@@ -39,6 +42,18 @@ export default async function AdminCompanyStagesPage({
           {company.name} · Arrastra para reordenar. Las etapas finales marcan leads como clientes ganados.
         </p>
       </div>
+
+      {!hasStages && (
+        <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-5 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-amber-800">Esta empresa no tiene etapas</p>
+            <p className="text-xs text-amber-600 mt-0.5">
+              Crea las etapas por defecto (Nuevo, Llamada agendada, Reunión, Negociación, Cerrado, No calificó) o agrégalas manualmente.
+            </p>
+          </div>
+          <SeedStagesButton companyId={id} />
+        </div>
+      )}
 
       <StagesEditor
         initialStages={stages || []}
