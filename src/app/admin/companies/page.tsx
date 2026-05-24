@@ -26,14 +26,14 @@ export default async function CompaniesPage() {
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Empresas</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Usuario Empresa</h1>
           <p className="text-sm text-slate-500 mt-1">
-            {companies?.length || 0} empresa{companies?.length !== 1 ? "s" : ""} registrada{companies?.length !== 1 ? "s" : ""}
+            {companies?.length || 0} usuario{companies?.length !== 1 ? "s" : ""} empresa registrado{companies?.length !== 1 ? "s" : ""}
           </p>
         </div>
         <Button asChild>
           <Link href="/admin/companies/new">
-            <Plus className="w-4 h-4" /> Nueva empresa
+            <Plus className="w-4 h-4" /> Nuevo usuario empresa
           </Link>
         </Button>
       </div>
@@ -41,12 +41,12 @@ export default async function CompaniesPage() {
       {companiesWithCounts.length === 0 ? (
         <EmptyState
           icon={<Building2 className="w-6 h-6" />}
-          title="No hay empresas registradas"
-          description="Crea tu primera empresa cliente para comenzar a gestionar leads."
+          title="No hay usuarios empresa registrados"
+          description="Crea tu primer usuario empresa para comenzar a gestionar leads."
           action={
             <Button asChild>
               <Link href="/admin/companies/new">
-                <Plus className="w-4 h-4" /> Nueva empresa
+                <Plus className="w-4 h-4" /> Nuevo usuario empresa
               </Link>
             </Button>
           }

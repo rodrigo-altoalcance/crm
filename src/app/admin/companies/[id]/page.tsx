@@ -29,7 +29,7 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
     <div className="p-8">
       <div className="mb-6">
         <Link href="/admin/companies" className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 mb-4">
-          <ArrowLeft className="w-4 h-4" /> Volver a empresas
+          <ArrowLeft className="w-4 h-4" /> Volver a Usuarios Empresa
         </Link>
         <div className="flex items-start justify-between">
           <div>

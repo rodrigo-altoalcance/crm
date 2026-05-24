@@ -168,7 +168,7 @@ export function CompanyForm({ company }: CompanyFormProps) {
 
       <div className="flex gap-3">
         <Button type="submit" disabled={loading}>
-          {loading ? "Guardando..." : company ? "Actualizar empresa" : "Crear empresa"}
+          {loading ? "Guardando..." : company ? "Actualizar usuario empresa" : "Crear usuario empresa"}
         </Button>
         <Button type="button" variant="outline" onClick={() => router.back()}>
           Cancelar

@@ -16,7 +16,9 @@ export function InviteUserForm({ companyId }: InviteUserFormProps) {
   const [form, setForm] = useState({
     full_name: "",
     email: "",
-    role: "seller",
+    password: "",
+    confirm_password: "",
+    role: "company_admin",
   })
 
   function set(key: string, value: string) {
@@ -25,24 +27,39 @@ export function InviteUserForm({ companyId }: InviteUserFormProps) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+
+    if (form.password !== form.confirm_password) {
+      toast.error("Las contraseñas no coinciden")
+      return
+    }
+    if (form.password.length < 6) {
+      toast.error("La contraseña debe tener al menos 6 caracteres")
+      return
+    }
+
     setLoading(true)
     try {
       const res = await fetch(`/api/admin/companies/${companyId}/users`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          full_name: form.full_name,
+          email: form.email,
+          password: form.password,
+          role: form.role,
+        }),
       })
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        toast.error(data.error || "Error al invitar usuario")
+        toast.error(data.error || "Error al crear usuario")
         return
       }
 
-      toast.success(`Invitación enviada a ${form.email}`)
-      setForm({ full_name: "", email: "", role: "seller" })
+      toast.success(`Usuario creado. Se envió el correo de bienvenida a ${form.email}`)
+      setForm({ full_name: "", email: "", password: "", confirm_password: "", role: "company_admin" })
     } catch {
-      toast.error("Error de red al invitar usuario")
+      toast.error("Error de red al crear usuario")
     } finally {
       setLoading(false)
     }
@@ -50,29 +67,54 @@ export function InviteUserForm({ companyId }: InviteUserFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="full_name">Nombre completo *</Label>
-          <Input
-            id="full_name"
-            type="text"
-            placeholder="Juan Pérez"
-            value={form.full_name}
-            onChange={(e) => set("full_name", e.target.value)}
-            required
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="email">Email *</Label>
-          <Input
-            id="email"
-            type="email"
-            placeholder="juan@empresa.com"
-            value={form.email}
-            onChange={(e) => set("email", e.target.value)}
-            required
-          />
-        </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="full_name">Nombre completo *</Label>
+        <Input
+          id="full_name"
+          type="text"
+          placeholder="Juan Pérez"
+          value={form.full_name}
+          onChange={(e) => set("full_name", e.target.value)}
+          required
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="email">Correo electrónico *</Label>
+        <Input
+          id="email"
+          type="email"
+          placeholder="juan@empresa.com"
+          value={form.email}
+          onChange={(e) => set("email", e.target.value)}
+          required
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="password">Contraseña *</Label>
+        <Input
+          id="password"
+          type="password"
+          placeholder="Mínimo 6 caracteres"
+          value={form.password}
+          onChange={(e) => set("password", e.target.value)}
+          required
+          minLength={6}
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="confirm_password">Confirmar contraseña *</Label>
+        <Input
+          id="confirm_password"
+          type="password"
+          placeholder="Repite la contraseña"
+          value={form.confirm_password}
+          onChange={(e) => set("confirm_password", e.target.value)}
+          required
+          minLength={6}
+        />
       </div>
 
       <div className="space-y-1.5">
@@ -90,7 +132,7 @@ export function InviteUserForm({ companyId }: InviteUserFormProps) {
 
       <div className="flex justify-end pt-2">
         <Button type="submit" disabled={loading}>
-          {loading ? "Enviando invitación..." : "Invitar usuario"}
+          {loading ? "Creando usuario..." : "Crear usuario empresa"}
         </Button>
       </div>
     </form>

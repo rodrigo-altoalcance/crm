@@ -105,7 +105,7 @@ export default async function CompanyUsersPage({
 
         <div className="bg-white rounded-xl border shadow-sm p-6">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-4">
-            Invitar usuario
+            Crear usuario empresa
           </h2>
           {users.length >= company.max_users ? (
             <p className="text-sm text-amber-600">

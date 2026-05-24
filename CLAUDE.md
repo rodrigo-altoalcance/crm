@@ -28,7 +28,7 @@ src/
 │   │   ├── companies/          # CRUD empresas + pagos + usuarios
 │   │   ├── leads/              # Leads globales
 │   │   ├── clients/            # Leads cerrados + config de pagos
-│   │   └── settings/emails/    # Templates de cobranza (Resend)
+│   │   └── settings/emails/    # Templates de email: bienvenida + cobranza (Resend)
 │   ├── dashboard/              # Portal empresa
 │   │   ├── leads/              # Kanban + tabla + detalle
 │   │   ├── clients/            # Clientes convertidos + registros
@@ -56,6 +56,7 @@ src/
     ├── supabase/{client,server,admin,middleware}.ts
     ├── auth/{getProfile,roles}.ts
     ├── email/mailer.ts         # sendEmail({ to, subject, html }) — usa RESEND_API_KEY
+    ├── email/welcome.ts        # sendWelcomeEmail({ to, companyName, verificationLink }) — usa template de BD
     └── utils.ts                # cn(), formatCLP(), formatDate()
 ```
 
@@ -102,7 +103,7 @@ webhook_tokens     id, company_id, token(uuid), name, field_mapping(jsonb)
 lead_field_definitions  id, company_id, name, label, type, options(jsonb), position
 client_records     id, lead_id, company_id, title, description, type, record_date
 payments           id, company_id, amount, currency, paid_at (super_admin only)
-email_templates    id, name, subject, body_html, is_default
+email_templates    id, name, subject, body_html, type('billing'|'welcome'), is_default
 crm_settings       key, value  (agency_name, agency_email)  — resend_api_key ya NO se guarda aquí, va en env var
 ```
 
@@ -125,6 +126,22 @@ await sendEmail({ to: "...", subject: "...", html: "..." })
 
 ### Ruta de prueba
 `POST /api/admin/test-email` — solo `super_admin`, body: `{ "to": "email@ejemplo.com" }`
+
+### Templates de email (BD)
+- `email_templates.type = 'billing'` — templates de cobranza, editables desde `/admin/settings/emails`
+- `email_templates.type = 'welcome'` — template de bienvenida, **uno por defecto** (`is_default=true`)
+- El `EmailTemplateForm` muestra variables según el tipo: billing usa `{{cliente_nombre}}` etc., welcome usa `{{nombre_empresa}}`, `{{email}}`, `{{link_verificacion}}`
+- Migración inicial: `supabase/migrations/003_welcome_email_template.sql`
+
+### Email de bienvenida al crear usuario empresa
+```typescript
+import { sendWelcomeEmail } from "@/lib/email/welcome"
+await sendWelcomeEmail({ to, companyName, verificationLink })
+```
+- Se dispara en `POST /api/admin/companies/[id]/users`
+- Usa `adminClient.auth.admin.generateLink({ type: 'invite', email, options: { data: {...} } })` para obtener el link de activación **sin** que Supabase envíe su email genérico
+- `linkData.properties.action_link` es el `{{link_verificacion}}`
+- Si el envío falla, loguea el error pero **no bloquea** la creación del usuario (try/catch)
 
 ## Flujos especiales
 - **Cierre de lead**: etapa con `is_final=true` → aparece automáticamente en módulo Clientes

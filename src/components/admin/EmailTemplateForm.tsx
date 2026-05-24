@@ -11,12 +11,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import type { EmailTemplate } from "@/types/database"
 
-const VARIABLES = [
+const BILLING_VARIABLES = [
   { key: "{{cliente_nombre}}", desc: "Nombre de la empresa cliente" },
   { key: "{{monto}}", desc: "Monto mensual (formateado)" },
   { key: "{{fecha_vencimiento}}", desc: "Fecha del próximo pago" },
   { key: "{{agencia_nombre}}", desc: "Nombre de la agencia" },
   { key: "{{agencia_email}}", desc: "Email de la agencia" },
+]
+
+const WELCOME_VARIABLES = [
+  { key: "{{nombre_empresa}}", desc: "Nombre de la empresa del usuario" },
+  { key: "{{email}}", desc: "Email del nuevo usuario" },
+  { key: "{{link_verificacion}}", desc: "Enlace para activar la cuenta" },
 ]
 
 interface EmailTemplateFormProps {
@@ -26,6 +32,8 @@ interface EmailTemplateFormProps {
 export function EmailTemplateForm({ template }: EmailTemplateFormProps) {
   const router = useRouter()
   const isEdit = !!template
+  const templateType = template?.type || "billing"
+  const variables = templateType === "welcome" ? WELCOME_VARIABLES : BILLING_VARIABLES
   const [name, setName] = useState(template?.name || "")
   const [subject, setSubject] = useState(template?.subject || "")
   const [bodyHtml, setBodyHtml] = useState(template?.body_html || DEFAULT_HTML)
@@ -92,7 +100,7 @@ export function EmailTemplateForm({ template }: EmailTemplateFormProps) {
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
-            {VARIABLES.map((v) => (
+            {variables.map((v) => (
               <button
                 key={v.key}
                 type="button"

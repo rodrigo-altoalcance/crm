@@ -16,10 +16,10 @@ export async function POST(request: Request) {
   const profile = await getProfile(supabase)
   if (profile?.role !== "super_admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-  const { name, subject, body_html } = await request.json()
+  const { name, subject, body_html, type } = await request.json()
   const { data, error } = await supabase
     .from("email_templates")
-    .insert({ name, subject, body_html })
+    .insert({ name, subject, body_html, type: type || "billing" })
     .select()
     .single()
 
