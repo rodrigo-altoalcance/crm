@@ -16,6 +16,7 @@ interface CompanyFormProps {
 
 export function CompanyForm({ company }: CompanyFormProps) {
   const router = useRouter()
+  const isEditing = !!company
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
     name: company?.name || "",
@@ -32,6 +33,11 @@ export function CompanyForm({ company }: CompanyFormProps) {
     org_email: company?.org_email || "",
     org_phone: company?.org_phone || "",
     org_website: company?.org_website || "",
+    // user fields — solo al crear
+    admin_full_name: "",
+    admin_email: "",
+    admin_password: "",
+    admin_confirm_password: "",
   })
 
   function set(key: string, value: string) {
@@ -40,31 +46,67 @@ export function CompanyForm({ company }: CompanyFormProps) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setLoading(true)
 
-    const payload = {
-      ...form,
-      monthly_fee: form.monthly_fee ? parseFloat(form.monthly_fee) : null,
-      payment_day: form.payment_day ? parseInt(form.payment_day) : null,
-      max_users: parseInt(form.max_users) || 5,
+    if (!isEditing) {
+      if (!form.admin_email) {
+        toast.error("El correo del administrador es requerido")
+        return
+      }
+      if (!form.admin_password || form.admin_password.length < 6) {
+        toast.error("La contraseña debe tener al menos 6 caracteres")
+        return
+      }
+      if (form.admin_password !== form.admin_confirm_password) {
+        toast.error("Las contraseñas no coinciden")
+        return
+      }
     }
 
+    setLoading(true)
+
+    const companyFields = {
+      name: form.name,
+      email: form.email,
+      phone: form.phone,
+      address: form.address,
+      website: form.website,
+      monthly_fee: form.monthly_fee ? parseFloat(form.monthly_fee) : null,
+      currency: form.currency,
+      payment_day: form.payment_day ? parseInt(form.payment_day) : null,
+      max_users: parseInt(form.max_users) || 5,
+      status: form.status,
+      org_name: form.org_name,
+      org_email: form.org_email,
+      org_phone: form.org_phone,
+      org_website: form.org_website,
+    }
+
+    const payload = isEditing
+      ? companyFields
+      : {
+          ...companyFields,
+          admin_full_name: form.admin_full_name,
+          admin_email: form.admin_email,
+          admin_password: form.admin_password,
+        }
+
     const res = await fetch(
-      company ? `/api/admin/companies/${company.id}` : "/api/admin/companies",
+      isEditing ? `/api/admin/companies/${company.id}` : "/api/admin/companies",
       {
-        method: company ? "PATCH" : "POST",
+        method: isEditing ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       }
     )
 
     if (!res.ok) {
-      toast.error("Error al guardar empresa")
+      const data = await res.json().catch(() => ({}))
+      toast.error(data.error || "Error al guardar")
       setLoading(false)
       return
     }
 
-    toast.success(company ? "Empresa actualizada" : "Empresa creada")
+    toast.success(isEditing ? "Usuario empresa actualizado" : "Usuario empresa creado. Se envió el correo de bienvenida.")
     router.push("/admin/companies")
     router.refresh()
   }
@@ -166,9 +208,65 @@ export function CompanyForm({ company }: CompanyFormProps) {
         </div>
       </div>
 
+      {!isEditing && (
+        <>
+          <Separator />
+          <div>
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-1">Acceso del administrador</h3>
+            <p className="text-xs text-slate-400 mb-4">El usuario recibirá un correo para activar su cuenta.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2 space-y-1.5">
+                <Label htmlFor="admin_full_name">Nombre completo</Label>
+                <Input
+                  id="admin_full_name"
+                  placeholder="Juan Pérez"
+                  value={form.admin_full_name}
+                  onChange={(e) => set("admin_full_name", e.target.value)}
+                />
+              </div>
+              <div className="sm:col-span-2 space-y-1.5">
+                <Label htmlFor="admin_email">Correo electrónico *</Label>
+                <Input
+                  id="admin_email"
+                  type="email"
+                  placeholder="admin@empresa.com"
+                  value={form.admin_email}
+                  onChange={(e) => set("admin_email", e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="admin_password">Contraseña *</Label>
+                <Input
+                  id="admin_password"
+                  type="password"
+                  placeholder="Mínimo 6 caracteres"
+                  value={form.admin_password}
+                  onChange={(e) => set("admin_password", e.target.value)}
+                  required
+                  minLength={6}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="admin_confirm_password">Confirmar contraseña *</Label>
+                <Input
+                  id="admin_confirm_password"
+                  type="password"
+                  placeholder="Repite la contraseña"
+                  value={form.admin_confirm_password}
+                  onChange={(e) => set("admin_confirm_password", e.target.value)}
+                  required
+                  minLength={6}
+                />
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       <div className="flex gap-3">
         <Button type="submit" disabled={loading}>
-          {loading ? "Guardando..." : company ? "Actualizar usuario empresa" : "Crear usuario empresa"}
+          {loading ? "Guardando..." : isEditing ? "Actualizar usuario empresa" : "Crear usuario empresa"}
         </Button>
         <Button type="button" variant="outline" onClick={() => router.back()}>
           Cancelar
