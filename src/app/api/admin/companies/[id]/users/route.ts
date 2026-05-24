@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { createAdminClient } from "@/lib/supabase/admin"
 import { getProfile } from "@/lib/auth/getProfile"
+import { generateInviteLink } from "@/lib/auth/invite"
 import { sendInvitationEmail } from "@/lib/email/invitation"
 
 export async function GET(
@@ -72,24 +72,16 @@ export async function POST(
     )
   }
 
-  const adminClient = createAdminClient()
-
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
-  const { data: linkData, error } = await adminClient.auth.admin.generateLink({
-    type: "invite",
-    email,
-    options: {
-      redirectTo: `${siteUrl}/activar-cuenta`,
-      data: {
-        role: role || "company_admin",
-        company_id: id,
-        full_name,
-      },
-    },
-  })
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  let inviteResult: { action_link: string; user_id: string }
+  try {
+    inviteResult = await generateInviteLink(email, {
+      role: role || "company_admin",
+      company_id: id,
+      full_name,
+    })
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Error generando invitación"
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 
   try {
@@ -97,11 +89,11 @@ export async function POST(
       to: email,
       inviteeName: full_name,
       companyName: company.name,
-      inviteLink: linkData.properties.action_link,
+      inviteLink: inviteResult.action_link,
     })
   } catch (emailError) {
     console.error("Error enviando email de invitación:", emailError)
   }
 
-  return NextResponse.json(linkData.user, { status: 201 })
+  return NextResponse.json({ id: inviteResult.user_id }, { status: 201 })
 }

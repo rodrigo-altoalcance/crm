@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getProfile } from "@/lib/auth/getProfile"
 import { getDefaultPermissions } from "@/lib/auth/roles"
+import { generateInviteLink } from "@/lib/auth/invite"
 import { sendInvitationEmail } from "@/lib/email/invitation"
 
 export async function GET(
@@ -55,35 +56,31 @@ export async function POST(
 
   const { full_name, email, role, permissions } = await request.json()
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
-  const { data: linkData, error } = await admin.auth.admin.generateLink({
-    type: "invite",
-    email,
-    options: {
-      redirectTo: `${siteUrl}/activar-cuenta`,
-      data: {
-        role: role || "seller",
-        company_id: companyId,
-        full_name,
-        permissions: JSON.stringify(permissions || getDefaultPermissions()),
-      },
-    },
-  })
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  let inviteResult: { action_link: string; user_id: string }
+  try {
+    inviteResult = await generateInviteLink(email, {
+      role: role || "seller",
+      company_id: companyId,
+      full_name,
+      permissions: JSON.stringify(permissions || getDefaultPermissions()),
+    })
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Error generando invitación"
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
 
   try {
     await sendInvitationEmail({
       to: email,
       inviteeName: full_name,
       companyName: company.name,
-      inviteLink: linkData.properties.action_link,
+      inviteLink: inviteResult.action_link,
     })
   } catch (emailError) {
     console.error("Error enviando email de invitación:", emailError)
   }
 
-  return NextResponse.json(linkData.user, { status: 201 })
+  return NextResponse.json({ id: inviteResult.user_id }, { status: 201 })
 }
 
 export async function DELETE(
