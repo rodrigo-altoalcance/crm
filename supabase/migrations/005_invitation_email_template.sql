@@ -1,0 +1,11 @@
+-- Invitation email template (sent when inviting team members or company users)
+INSERT INTO email_templates (name, subject, body_html, type, is_default)
+SELECT
+  'Invitación al equipo',
+  'Te invitamos a unirte a {{nombre_empresa}}',
+  '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>Invitación al equipo</title></head><body style="font-family:-apple-system,BlinkMacSystemFont,''Segoe UI'',sans-serif;background-color:#f8fafc;margin:0;padding:40px 20px"><div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1)"><div style="background:#0F172A;padding:32px 40px;text-align:center"><h1 style="color:#ffffff;font-size:22px;font-weight:700;margin:0">Alto Alcance CRM</h1><p style="color:#94a3b8;font-size:13px;margin:6px 0 0">Tu plataforma de gestión de leads</p></div><div style="padding:40px"><h2 style="color:#1e293b;font-size:20px;font-weight:700;margin:0 0 16px">¡Te invitaron a unirte!</h2><p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 12px">Hola <strong>{{nombre_invitado}}</strong>,</p><p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 24px">Has sido invitado a unirte al equipo de <strong>{{nombre_empresa}}</strong> en Alto Alcance CRM.</p><p style="color:#475569;font-size:14px;margin:0 0 16px">Haz clic en el botón a continuación para aceptar la invitación y configurar tu contraseña:</p><div style="text-align:center;margin-bottom:32px"><a href="{{link_invitacion}}" style="display:inline-block;background:#6366F1;color:#ffffff;padding:14px 32px;border-radius:8px;text-decoration:none;font-size:15px;font-weight:600;letter-spacing:0.02em">Aceptar invitación</a></div><p style="color:#94a3b8;font-size:12px;line-height:1.5;margin:0">Si el botón no funciona, copia y pega este enlace en tu navegador:<br/><span style="word-break:break-all">{{link_invitacion}}</span></p></div><div style="padding:24px 40px;border-top:1px solid #e2e8f0;text-align:center"><p style="margin:0;color:#94a3b8;font-size:12px">Alto Alcance CRM &mdash; Este es un email automático, por favor no respondas.</p></div></div></body></html>',
+  'invitation',
+  true
+WHERE NOT EXISTS (
+  SELECT 1 FROM email_templates WHERE type = 'invitation' AND is_default = true
+);

@@ -13,9 +13,10 @@ import type { UserPermissions } from "@/types/database"
 interface InviteTeamMemberFormProps {
   companyId: string
   onSuccess: () => void
+  apiPrefix?: string
 }
 
-export function InviteTeamMemberForm({ companyId, onSuccess }: InviteTeamMemberFormProps) {
+export function InviteTeamMemberForm({ companyId, onSuccess, apiPrefix = "/api" }: InviteTeamMemberFormProps) {
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({ full_name: "", email: "" })
   const [permissions, setPermissions] = useState<UserPermissions>(getDefaultPermissions())
@@ -29,7 +30,7 @@ export function InviteTeamMemberForm({ companyId, onSuccess }: InviteTeamMemberF
     if (!form.full_name.trim() || !form.email.trim()) return
     setLoading(true)
     try {
-      const res = await fetch("/api/team", {
+      const res = await fetch(`${apiPrefix}/team`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, permissions }),
@@ -39,7 +40,7 @@ export function InviteTeamMemberForm({ companyId, onSuccess }: InviteTeamMemberF
         toast.error(data.error || "Error al invitar miembro")
         return
       }
-      toast.success(`Invitación enviada a ${form.email}`)
+      toast.success(`Invitación enviada a ${form.email}. El colaborador recibirá un correo para crear su contraseña.`)
       onSuccess()
     } catch {
       toast.error("Error de red")

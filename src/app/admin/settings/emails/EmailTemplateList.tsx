@@ -50,6 +50,7 @@ export function EmailTemplateList({ templates }: { templates: EmailTemplate[] })
               <div className="flex items-center gap-2 mb-1">
                 <h3 className="font-semibold text-slate-900">{t.name}</h3>
                 {t.type === "welcome" && <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 border-emerald-200">Bienvenida</Badge>}
+                {t.type === "invitation" && <Badge variant="secondary" className="bg-indigo-50 text-indigo-700 border-indigo-200">Invitación</Badge>}
                 {t.type === "billing" && <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200">Cobranza</Badge>}
                 {t.is_default && <Badge variant="info">Por defecto</Badge>}
               </div>

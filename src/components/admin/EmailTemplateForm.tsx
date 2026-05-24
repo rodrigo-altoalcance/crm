@@ -25,6 +25,12 @@ const WELCOME_VARIABLES = [
   { key: "{{link_verificacion}}", desc: "Enlace para activar la cuenta" },
 ]
 
+const INVITATION_VARIABLES = [
+  { key: "{{nombre_invitado}}", desc: "Nombre de la persona invitada" },
+  { key: "{{nombre_empresa}}", desc: "Nombre de la empresa a la que se invita" },
+  { key: "{{link_invitacion}}", desc: "Enlace para aceptar la invitación y crear contraseña" },
+]
+
 interface EmailTemplateFormProps {
   template?: EmailTemplate
 }
@@ -33,7 +39,12 @@ export function EmailTemplateForm({ template }: EmailTemplateFormProps) {
   const router = useRouter()
   const isEdit = !!template
   const templateType = template?.type || "billing"
-  const variables = templateType === "welcome" ? WELCOME_VARIABLES : BILLING_VARIABLES
+  const variables =
+    templateType === "welcome"
+      ? WELCOME_VARIABLES
+      : templateType === "invitation"
+      ? INVITATION_VARIABLES
+      : BILLING_VARIABLES
   const [name, setName] = useState(template?.name || "")
   const [subject, setSubject] = useState(template?.subject || "")
   const [bodyHtml, setBodyHtml] = useState(template?.body_html || DEFAULT_HTML)

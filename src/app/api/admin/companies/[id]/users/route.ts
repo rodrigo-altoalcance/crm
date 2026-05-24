@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getProfile } from "@/lib/auth/getProfile"
-import { sendWelcomeEmail } from "@/lib/email/welcome"
+import { sendInvitationEmail } from "@/lib/email/invitation"
 
 export async function GET(
   _request: Request,
@@ -41,16 +41,13 @@ export async function POST(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
-  const { full_name, email, password, role } = await request.json()
+  const { full_name, email, role } = await request.json()
 
   if (!email) {
     return NextResponse.json({ error: "El email es requerido" }, { status: 400 })
   }
   if (!full_name) {
     return NextResponse.json({ error: "El nombre es requerido" }, { status: 400 })
-  }
-  if (!password || password.length < 6) {
-    return NextResponse.json({ error: "La contraseña debe tener al menos 6 caracteres" }, { status: 400 })
   }
 
   const { data: company } = await supabase
@@ -77,13 +74,9 @@ export async function POST(
 
   const adminClient = createAdminClient()
 
-  // Create user with password + generate email confirmation link in one call.
-  // email_confirm is false by default for type "signup", so the user must click
-  // the action_link before they can log in.
   const { data: linkData, error } = await adminClient.auth.admin.generateLink({
-    type: "signup",
+    type: "invite",
     email,
-    password,
     options: {
       data: {
         role: role || "company_admin",
@@ -97,16 +90,15 @@ export async function POST(
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  const verificationLink = linkData.properties.action_link
-
   try {
-    await sendWelcomeEmail({
+    await sendInvitationEmail({
       to: email,
+      inviteeName: full_name,
       companyName: company.name,
-      verificationLink,
+      inviteLink: linkData.properties.action_link,
     })
   } catch (emailError) {
-    console.error("Error enviando email de bienvenida:", emailError)
+    console.error("Error enviando email de invitación:", emailError)
   }
 
   return NextResponse.json(linkData.user, { status: 201 })

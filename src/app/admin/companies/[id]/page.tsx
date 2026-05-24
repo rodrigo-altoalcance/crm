@@ -4,7 +4,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/shared/StatusBadge"
 import { formatCLP, formatDate } from "@/lib/utils"
-import { Edit, CreditCard, Users, LogIn, ArrowLeft, Webhook } from "lucide-react"
+import { Edit, CreditCard, Users, LogIn, ArrowLeft, Webhook, Kanban, UserCog } from "lucide-react"
 import ImpersonateButton from "./ImpersonateButton"
 
 export default async function CompanyDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -94,6 +94,18 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
         <div className="bg-white rounded-xl border p-6 shadow-sm">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-4">Acciones rápidas</h2>
           <div className="grid grid-cols-2 gap-3">
+            <Button asChild variant="outline" className="h-auto py-4 flex-col gap-2">
+              <Link href={`/admin/companies/${id}/leads`}>
+                <Kanban className="w-5 h-5 text-indigo-600" />
+                <span className="text-xs">Pipeline</span>
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="h-auto py-4 flex-col gap-2">
+              <Link href={`/admin/companies/${id}/team`}>
+                <UserCog className="w-5 h-5 text-indigo-600" />
+                <span className="text-xs">Equipo</span>
+              </Link>
+            </Button>
             <Button asChild variant="outline" className="h-auto py-4 flex-col gap-2">
               <Link href={`/admin/companies/${id}/payments`}>
                 <CreditCard className="w-5 h-5 text-indigo-600" />

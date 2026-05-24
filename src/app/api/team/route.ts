@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getProfile } from "@/lib/auth/getProfile"
 import { getDefaultPermissions } from "@/lib/auth/roles"
+import { sendInvitationEmail } from "@/lib/email/invitation"
 
 export async function GET() {
   const supabase = await createClient()
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Solo el admin de empresa puede invitar miembros" }, { status: 403 })
   }
 
-  const { data: company } = await supabase.from("companies").select("max_users").eq("id", companyId).single()
+  const { data: company } = await supabase.from("companies").select("max_users, name").eq("id", companyId).single()
   const { count: currentCount } = await supabase.from("profiles").select("*", { count: "exact", head: true }).eq("company_id", companyId)
 
   if (company && currentCount !== null && currentCount >= company.max_users) {
@@ -49,15 +50,31 @@ export async function POST(request: Request) {
   const { full_name, email, permissions } = await request.json()
   const admin = createAdminClient()
 
-  const { data: invited, error } = await admin.auth.admin.inviteUserByEmail(email, {
-    data: {
-      role: "seller",
-      company_id: companyId,
-      full_name,
-      permissions: JSON.stringify(permissions || getDefaultPermissions()),
+  const { data: linkData, error } = await admin.auth.admin.generateLink({
+    type: "invite",
+    email,
+    options: {
+      data: {
+        role: "seller",
+        company_id: companyId,
+        full_name,
+        permissions: JSON.stringify(permissions || getDefaultPermissions()),
+      },
     },
   })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(invited, { status: 201 })
+
+  try {
+    await sendInvitationEmail({
+      to: email,
+      inviteeName: full_name,
+      companyName: (company as any)?.name || "el equipo",
+      inviteLink: linkData.properties.action_link,
+    })
+  } catch (emailError) {
+    console.error("Error enviando email de invitación:", emailError)
+  }
+
+  return NextResponse.json(linkData.user, { status: 201 })
 }

@@ -25,10 +25,12 @@ src/
 ├── app/
 │   ├── (auth)/login/           # Login público
 │   ├── admin/                  # Panel super_admin
-│   │   ├── companies/          # CRUD usuario empresa (antes "Empresas") + pagos + usuarios
-│   │   ├── leads/              # Leads globales
+│   │   ├── companies/          # CRUD usuario empresa + pagos + usuarios + pipeline + equipo
+│   │   │   └── [id]/leads/     # Pipeline (Kanban+tabla) de la empresa — acceso directo sin impersonar
+│   │   │   └── [id]/team/      # Equipo de la empresa — invitar colaboradores desde admin
+│   │   ├── leads/              # Leads globales de la agencia
 │   │   ├── clients/            # Leads cerrados + config de pagos
-│   │   └── settings/emails/    # Templates de email: bienvenida + cobranza (Resend)
+│   │   └── settings/emails/    # Templates: bienvenida + invitación + cobranza (Resend)
 │   ├── dashboard/              # Portal empresa
 │   │   ├── leads/              # Kanban + tabla + detalle
 │   │   ├── clients/            # Clientes convertidos + registros
@@ -37,7 +39,11 @@ src/
 │   │   └── settings/           # Etapas, Org, Integraciones, Campos
 │   └── api/
 │       ├── admin/              # companies, leads, clients, impersonate, email-templates
-│       │   └── companies/[companyId]/tokens/  # CRUD tokens webhook (super_admin, sin impersonar)
+│       │   ├── companies/[companyId]/tokens/  # CRUD tokens webhook (super_admin, sin impersonar)
+│       │   ├── companies/[companyId]/leads/   # CRUD leads empresa (admin directo, sin impersonar)
+│       │   │   └── [leadId]/{stage,activities,tasks}/
+│       │   └── companies/[companyId]/team/    # Invitar/gestionar equipo empresa (admin directo)
+│       │       └── [userId]/                  # PATCH permisos, DELETE miembro
 │       ├── leads/[id]/         # stage, activities, tasks
 │       ├── webhook/leads/[token]/  # Público — Make.com
 │       ├── team/, tasks/, stages/
@@ -45,11 +51,11 @@ src/
        └── settings/           # tokens, field-definitions, organization
 ├── components/
 │   ├── ui/                     # shadcn manual: button, card, dialog, etc.
-│   ├── admin/                  # CompanyForm, ClientPaymentPanel, AdminSidebar, etc.
+│   ├── admin/                  # CompanyForm, ClientPaymentPanel, AdminSidebar, InviteUserForm, etc.
 │   ├── leads/                  # LeadsKanban, LeadDetailPanel, CloseLeadConfirmDialog
 │   ├── dashboard/              # DashboardSidebar, ImpersonationBanner
 │   ├── clients/                # ClientsTable, ClientRecordsPanel
-│   ├── tasks/, team/
+│   ├── tasks/, team/           # TeamView acepta apiPrefix + permissionsBasePath
 │   ├── settings/               # WebhookConfig, FieldMappingEditor, StagesEditor, OrganizationForm, FieldsEditor
 │   └── shared/                 # EmptyState, ConfirmDialog, StatusBadge, PriorityBadge
 └── lib/
@@ -57,6 +63,7 @@ src/
     ├── auth/{getProfile,roles}.ts
     ├── email/mailer.ts         # sendEmail({ to, subject, html }) — usa RESEND_API_KEY
     ├── email/welcome.ts        # sendWelcomeEmail({ to, companyName, verificationLink }) — usa template de BD
+    ├── email/invitation.ts     # sendInvitationEmail({ to, inviteeName, companyName, inviteLink }) — usa template BD
     └── utils.ts                # cn(), formatCLP(), formatDate()
 ```
 
@@ -103,7 +110,7 @@ webhook_tokens     id, company_id, token(uuid), name, field_mapping(jsonb)
 lead_field_definitions  id, company_id, name, label, type, options(jsonb), position
 client_records     id, lead_id, company_id, title, description, type, record_date
 payments           id, company_id, amount, currency, paid_at (super_admin only)
-email_templates    id, name, subject, body_html, type('billing'|'welcome'), is_default
+email_templates    id, name, subject, body_html, type('billing'|'welcome'|'invitation'), is_default
 crm_settings       key, value  (agency_name, agency_email)  — resend_api_key ya NO se guarda aquí, va en env var
 ```
 
@@ -129,27 +136,51 @@ await sendEmail({ to: "...", subject: "...", html: "..." })
 
 ### Templates de email (BD)
 - `email_templates.type = 'billing'` — templates de cobranza, editables desde `/admin/settings/emails`
-- `email_templates.type = 'welcome'` — template de bienvenida, **uno por defecto** (`is_default=true`)
-- El `EmailTemplateForm` muestra variables según el tipo: billing usa `{{cliente_nombre}}` etc., welcome usa `{{nombre_empresa}}`, `{{email}}`, `{{link_verificacion}}`
-- Migración inicial: `supabase/migrations/003_welcome_email_template.sql`
+- `email_templates.type = 'welcome'` — template de bienvenida legacy, **uno por defecto** (`is_default=true`)
+- `email_templates.type = 'invitation'` — template de invitación, **uno por defecto** (`is_default=true`) — migración `005`
+- El `EmailTemplateForm` muestra variables según el tipo:
+  - `billing` → `{{cliente_nombre}}`, `{{monto}}`, `{{fecha_vencimiento}}`, `{{agencia_nombre}}`, `{{agencia_email}}`
+  - `welcome` → `{{nombre_empresa}}`, `{{email}}`, `{{link_verificacion}}`
+  - `invitation` → `{{nombre_invitado}}`, `{{nombre_empresa}}`, `{{link_invitacion}}`
 
-### Email de bienvenida al crear usuario empresa
+### Flujo de invitación (equipo y usuarios empresa)
 ```typescript
-import { sendWelcomeEmail } from "@/lib/email/welcome"
-await sendWelcomeEmail({ to, companyName, verificationLink })
+import { sendInvitationEmail } from "@/lib/email/invitation"
+await sendInvitationEmail({ to, inviteeName, companyName, inviteLink })
 ```
-- Se dispara en `POST /api/admin/companies/[id]/users`
-- El formulario (`InviteUserForm`) requiere: `full_name`, `email`, `password`, `confirm_password` (todos obligatorios), rol por defecto `company_admin`
-- La API usa `adminClient.auth.admin.generateLink({ type: 'signup', email, password, options: { data: {...} } })` — crea el usuario con contraseña **y** genera el link de confirmación en una sola llamada
-- El usuario queda con email **no confirmado**: no puede ingresar hasta hacer clic en el link
-- `linkData.properties.action_link` es el `{{link_verificacion}}`
-- Si el envío falla, loguea el error pero **no bloquea** la creación del usuario (try/catch)
+- **Todos los flujos de invitación** usan `generateLink({ type: 'invite' })` + `sendInvitationEmail()` — el usuario invitado hace clic en el link y crea su propia contraseña
+- **Flujos que lo usan:**
+  - `POST /api/team` — company_admin invita sellers desde el dashboard
+  - `POST /api/admin/companies/[id]/users` — super_admin crea usuario empresa
+  - `POST /api/admin/companies/[id]/team` — super_admin invita colaboradores desde panel admin
+- El formulario `InviteUserForm` ya **no pide contraseña** — solo nombre, email y rol
+- El formulario `InviteTeamMemberForm` acepta prop `apiPrefix` (default `/api`) para ser reutilizado desde admin
 
 ### Módulo "Usuario Empresa" (ruta `/admin/companies`)
 - La UI usa el término **"Usuario Empresa"** (no "Empresas") en menú, títulos y breadcrumbs
-- El módulo gestiona: datos de la empresa, pagos, usuarios y tokens webhook
-- Al crear un usuario desde `/admin/companies/[id]/users`, el rol por defecto es `company_admin`
-- Flujo de activación: admin crea usuario con contraseña → Supabase crea cuenta sin confirmar → se envía email de bienvenida con link → usuario hace clic → cuenta activada
+- El módulo gestiona: datos de la empresa, pagos, usuarios, tokens webhook, **pipeline y equipo**
+- Flujo de activación: admin envía invitación → Supabase genera invite link → se envía email de invitación → usuario hace clic → crea contraseña → cuenta activada
+
+### Pipeline de empresa desde admin (`/admin/companies/[id]/leads`)
+- Acceso directo al Kanban/tabla de leads de una empresa **sin impersonar**
+- Usa `createAdminClient()` en todas las API routes — bypasea RLS, filtra por `company_id` de la URL
+- `LeadsView` recibe `basePath="/admin/companies/[id]/leads"` y `apiPrefix="/api/admin/companies/[id]"`
+- API routes disponibles (todas requieren `super_admin`):
+```
+GET/POST  /api/admin/companies/[id]/leads
+GET/PATCH/DELETE  /api/admin/companies/[id]/leads/[leadId]
+PATCH     /api/admin/companies/[id]/leads/[leadId]/stage
+GET/POST  /api/admin/companies/[id]/leads/[leadId]/activities
+GET/POST  /api/admin/companies/[id]/leads/[leadId]/tasks
+```
+
+### Módulo Equipo de empresa desde admin (`/admin/companies/[id]/team`)
+- `TeamView` acepta props `apiPrefix` y `permissionsBasePath` para ser reutilizado desde admin
+- API routes (todas requieren `super_admin`, usan `createAdminClient()`):
+```
+GET/POST    /api/admin/companies/[id]/team          → listar / invitar colaborador
+PATCH/DELETE /api/admin/companies/[id]/team/[userId] → editar permisos / eliminar
+```
 
 ## Flujos especiales
 - **Cierre de lead**: etapa con `is_final=true` → aparece automáticamente en módulo Clientes

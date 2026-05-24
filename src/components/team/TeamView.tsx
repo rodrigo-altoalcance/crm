@@ -50,9 +50,11 @@ interface TeamViewProps {
   companyId: string
   currentUserRole: Role
   maxUsers: number
+  apiPrefix?: string
+  permissionsBasePath?: string
 }
 
-export function TeamView({ members, companyId, currentUserRole, maxUsers }: TeamViewProps) {
+export function TeamView({ members, companyId, currentUserRole, maxUsers, apiPrefix = "/api", permissionsBasePath = "/dashboard/team" }: TeamViewProps) {
   const router = useRouter()
   const [inviteOpen, setInviteOpen] = useState(false)
   const canInvite = currentUserRole === "company_admin" || currentUserRole === "super_admin"
@@ -123,7 +125,7 @@ export function TeamView({ members, companyId, currentUserRole, maxUsers }: Team
                 </TableCell>
                 <TableCell>
                   {canInvite && member.role === "seller" && (
-                    <Link href={`/dashboard/team/${member.id}/permissions`}>
+                    <Link href={`${permissionsBasePath}/${member.id}/permissions`}>
                       <Button variant="ghost" size="sm">
                         <Settings className="w-4 h-4" />
                       </Button>
@@ -141,7 +143,7 @@ export function TeamView({ members, companyId, currentUserRole, maxUsers }: Team
           <DialogHeader>
             <DialogTitle>Invitar miembro al equipo</DialogTitle>
           </DialogHeader>
-          <InviteTeamMemberForm companyId={companyId} onSuccess={handleInviteSuccess} />
+          <InviteTeamMemberForm companyId={companyId} onSuccess={handleInviteSuccess} apiPrefix={apiPrefix} />
         </DialogContent>
       </Dialog>
     </>
