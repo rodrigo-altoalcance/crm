@@ -55,10 +55,12 @@ export async function POST(
 
   const { full_name, email, role, permissions } = await request.json()
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
   const { data: linkData, error } = await admin.auth.admin.generateLink({
     type: "invite",
     email,
     options: {
+      redirectTo: `${siteUrl}/activar-cuenta`,
       data: {
         role: role || "seller",
         company_id: companyId,

@@ -36,8 +36,6 @@ export function CompanyForm({ company }: CompanyFormProps) {
     // user fields — solo al crear
     admin_full_name: "",
     admin_email: "",
-    admin_password: "",
-    admin_confirm_password: "",
   })
 
   function set(key: string, value: string) {
@@ -47,19 +45,9 @@ export function CompanyForm({ company }: CompanyFormProps) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
 
-    if (!isEditing) {
-      if (!form.admin_email) {
-        toast.error("El correo del administrador es requerido")
-        return
-      }
-      if (!form.admin_password || form.admin_password.length < 6) {
-        toast.error("La contraseña debe tener al menos 6 caracteres")
-        return
-      }
-      if (form.admin_password !== form.admin_confirm_password) {
-        toast.error("Las contraseñas no coinciden")
-        return
-      }
+    if (!isEditing && !form.admin_email) {
+      toast.error("El correo del administrador es requerido")
+      return
     }
 
     setLoading(true)
@@ -87,7 +75,6 @@ export function CompanyForm({ company }: CompanyFormProps) {
           ...companyFields,
           admin_full_name: form.admin_full_name,
           admin_email: form.admin_email,
-          admin_password: form.admin_password,
         }
 
     const res = await fetch(
@@ -233,30 +220,6 @@ export function CompanyForm({ company }: CompanyFormProps) {
                   value={form.admin_email}
                   onChange={(e) => set("admin_email", e.target.value)}
                   required
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="admin_password">Contraseña *</Label>
-                <Input
-                  id="admin_password"
-                  type="password"
-                  placeholder="Mínimo 6 caracteres"
-                  value={form.admin_password}
-                  onChange={(e) => set("admin_password", e.target.value)}
-                  required
-                  minLength={6}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="admin_confirm_password">Confirmar contraseña *</Label>
-                <Input
-                  id="admin_confirm_password"
-                  type="password"
-                  placeholder="Repite la contraseña"
-                  value={form.admin_confirm_password}
-                  onChange={(e) => set("admin_confirm_password", e.target.value)}
-                  required
-                  minLength={6}
                 />
               </div>
             </div>
