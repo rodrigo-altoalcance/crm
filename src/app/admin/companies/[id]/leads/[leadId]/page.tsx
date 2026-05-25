@@ -6,7 +6,7 @@ import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import { LeadDetailPanel } from "@/components/leads/LeadDetailPanel"
 import { LeadTasksPanel } from "@/components/leads/LeadTasksPanel"
-import { LeadNoteForm } from "@/components/leads/LeadNoteForm"
+import { LeadHistoryPanel } from "@/components/leads/LeadHistoryPanel"
 import type { Lead, LeadStage, Task } from "@/types/database"
 
 export default async function AdminCompanyLeadDetailPage({
@@ -42,7 +42,7 @@ export default async function AdminCompanyLeadDetailPage({
       .order("created_at", { ascending: false }),
     admin
       .from("tasks")
-      .select("*, assigned_profile:profiles!assigned_to(full_name)")
+      .select("*, assigned_profile:profiles!assigned_to(id, full_name, avatar_url)")
       .eq("lead_id", leadId)
       .eq("company_id", companyId)
       .order("created_at", { ascending: false }),
@@ -77,7 +77,7 @@ export default async function AdminCompanyLeadDetailPage({
       </Link>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className="xl:col-span-2 space-y-6">
+        <div className="xl:col-span-2">
           <LeadDetailPanel
             lead={lead}
             stages={mappedStages}
@@ -86,29 +86,6 @@ export default async function AdminCompanyLeadDetailPage({
             apiPrefix={apiPrefix}
             closedRedirectPath={`/admin/companies/${companyId}/leads`}
           />
-          <LeadNoteForm leadId={leadId} apiPrefix={apiPrefix} />
-          <div className="bg-white rounded-xl border shadow-sm p-6">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-4">Actividad</h2>
-            {activities && activities.length > 0 ? (
-              <div className="space-y-3">
-                {activities.map((act: any) => (
-                  <div key={act.id} className="flex gap-3 py-2 border-b last:border-0">
-                    <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-xs font-semibold flex-shrink-0 mt-0.5">
-                      {act.profile?.full_name?.charAt(0) || "?"}
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm text-slate-700">{act.description}</p>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        {act.profile?.full_name} · {new Date(act.created_at).toLocaleDateString("es-CL")}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-slate-500">Sin actividad registrada</p>
-            )}
-          </div>
         </div>
 
         <div className="space-y-6">
@@ -116,9 +93,10 @@ export default async function AdminCompanyLeadDetailPage({
             leadId={leadId}
             tasks={tasks}
             teamMembers={teamMembers || []}
-            companyId={companyId}
             apiPrefix={apiPrefix}
+            taskApiPrefix="/api"
           />
+          <LeadHistoryPanel activities={activities || []} />
         </div>
       </div>
     </div>

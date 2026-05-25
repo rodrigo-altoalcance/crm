@@ -12,7 +12,13 @@ export async function PATCH(
   const profile = await getProfile(supabase)
   if (profile?.role !== "super_admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-  const { stage_id } = await request.json()
+  const body = await request.json()
+  const { stage_id, comment } = body
+
+  if (!comment?.trim()) {
+    return NextResponse.json({ error: "El comentario es obligatorio al cambiar etapa" }, { status: 400 })
+  }
+
   const admin = createAdminClient()
 
   const { data: stage } = await admin
@@ -22,6 +28,14 @@ export async function PATCH(
     .single()
 
   if (!stage) return NextResponse.json({ error: "Etapa no encontrada" }, { status: 404 })
+
+  // Fetch current stage before updating
+  const { data: currentLead } = await admin
+    .from("leads")
+    .select("stage_id, stage:lead_stages(id, name)")
+    .eq("id", leadId)
+    .eq("company_id", companyId)
+    .single()
 
   const { data: lead, error } = await admin
     .from("leads")
@@ -33,17 +47,20 @@ export async function PATCH(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const activityType = stage.is_final ? "lead_closed" : "stage_changed"
-  const description = stage.is_final
-    ? `Lead cerrado — movido a ${stage.name} por ${profile.full_name} (admin)`
-    : `Etapa cambiada a "${stage.name}" por ${profile.full_name} (admin)`
+  const fromStage = (currentLead?.stage as any)
 
   await admin.from("lead_activities").insert({
     lead_id: leadId,
     user_id: profile.id,
-    type: activityType,
-    description,
-    metadata: { stage_name: stage.name, is_final: stage.is_final },
+    type: stage.is_final ? "lead_closed" : "stage_changed",
+    description: comment.trim(),
+    metadata: {
+      from_stage_id: fromStage?.id ?? null,
+      from_stage_name: fromStage?.name ?? null,
+      to_stage_id: stage.id,
+      to_stage_name: stage.name,
+      is_final: stage.is_final,
+    },
   })
 
   return NextResponse.json(lead)

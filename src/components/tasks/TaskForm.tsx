@@ -13,9 +13,10 @@ interface TaskFormProps {
   teamMembers: Pick<Profile, "id" | "full_name">[]
   companyId: string
   onSuccess: () => void
+  tasksApiPrefix?: string
 }
 
-export function TaskForm({ teamMembers, companyId, onSuccess }: TaskFormProps) {
+export function TaskForm({ teamMembers, companyId, onSuccess, tasksApiPrefix = "/api" }: TaskFormProps) {
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
     title: "",
@@ -35,7 +36,7 @@ export function TaskForm({ teamMembers, companyId, onSuccess }: TaskFormProps) {
     if (!form.title.trim()) return
     setLoading(true)
     try {
-      const res = await fetch("/api/tasks", {
+      const res = await fetch(`${tasksApiPrefix}/tasks`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

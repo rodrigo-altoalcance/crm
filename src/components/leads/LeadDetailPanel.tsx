@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { CloseLeadConfirmDialog } from "./CloseLeadConfirmDialog"
@@ -33,47 +35,62 @@ export function LeadDetailPanel({ lead, stages, teamMembers, profile, apiPrefix 
   const [closingLead, setClosingLead] = useState(false)
   const [pendingStageId, setPendingStageId] = useState<string | null>(null)
   const [currentStageId, setCurrentStageId] = useState(lead.stage_id)
+  const [selectedStageId, setSelectedStageId] = useState(lead.stage_id)
+  const [comment, setComment] = useState("")
   const [loading, setLoading] = useState(false)
 
   const closePerm = canCloseLead(profile)
+  const currentStage = stages.find((s) => s.id === currentStageId)
+  const selectedStage = stages.find((s) => s.id === selectedStageId)
+  const hasChanges = selectedStageId !== currentStageId
 
-  async function handleStageChange(stageId: string) {
-    const stage = stages.find((s) => s.id === stageId)
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!selectedStageId || !comment.trim()) return
+
+    const stage = stages.find((s) => s.id === selectedStageId)
     if (!stage) return
+
     if (stage.is_final && closePerm) {
-      setPendingStageId(stageId)
+      setPendingStageId(selectedStageId)
       setClosingLead(true)
       return
     }
-    await updateStage(stageId)
+    if (stage.is_final && !closePerm) {
+      toast.error("No tienes permiso para cerrar leads")
+      return
+    }
+
+    await submitStageChange(selectedStageId, comment)
   }
 
-  async function updateStage(stageId: string) {
+  async function submitStageChange(stageId: string, commentText: string) {
     setLoading(true)
     const res = await fetch(`${apiPrefix}/leads/${lead.id}/stage`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ stage_id: stageId }),
+      body: JSON.stringify({ stage_id: stageId, comment: commentText }),
     })
     if (res.ok) {
       setCurrentStageId(stageId)
+      setComment("")
       router.refresh()
+      toast.success("Etapa actualizada")
     } else {
-      toast.error("Error al actualizar etapa")
+      const data = await res.json().catch(() => ({}))
+      toast.error(data.error || "Error al actualizar etapa")
     }
     setLoading(false)
   }
 
   async function handleConfirmClose() {
     if (!pendingStageId) return
-    await updateStage(pendingStageId)
+    await submitStageChange(pendingStageId, comment)
     setClosingLead(false)
     setPendingStageId(null)
     toast.success("Lead cerrado y movido a Clientes")
     router.push(closedRedirectPath)
   }
-
-  const currentStage = stages.find((s) => s.id === currentStageId)
 
   return (
     <>
@@ -113,14 +130,42 @@ export function LeadDetailPanel({ lead, stages, teamMembers, profile, apiPrefix 
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Etapa</p>
-              <Select value={currentStageId} onValueChange={handleStageChange} disabled={loading}>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Etapa actual</p>
+              {currentStage && (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: currentStage.color }} />
+                  <span className="font-medium text-slate-700">{currentStage.name}</span>
+                  {currentStage.is_final && <span className="text-xs text-green-600 font-medium">✓ Cerrado</span>}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Asignado a</p>
+              {(lead as any).assigned_profile ? (
+                <div className="flex items-center gap-2">
+                  <Avatar className="w-7 h-7">
+                    <AvatarFallback className="text-xs">{(lead as any).assigned_profile.full_name?.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm">{(lead as any).assigned_profile.full_name}</span>
+                </div>
+              ) : (
+                <span className="text-sm text-slate-400">Sin asignar</span>
+              )}
+            </div>
+          </div>
+
+          <div className="border-t pt-4">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Cambiar etapa</p>
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <Select value={selectedStageId} onValueChange={setSelectedStageId} disabled={loading}>
                 <SelectTrigger>
                   <SelectValue>
-                    {currentStage && (
+                    {selectedStage && (
                       <span className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: currentStage.color }} />
-                        {currentStage.name}
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: selectedStage.color }} />
+                        {selectedStage.name}
+                        {selectedStage.is_final && " ✓"}
                       </span>
                     )}
                   </SelectValue>
@@ -137,21 +182,24 @@ export function LeadDetailPanel({ lead, stages, teamMembers, profile, apiPrefix 
                   ))}
                 </SelectContent>
               </Select>
-            </div>
 
-            <div className="space-y-1.5">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Asignado a</p>
-              {(lead as any).assigned_profile ? (
-                <div className="flex items-center gap-2">
-                  <Avatar className="w-7 h-7">
-                    <AvatarFallback className="text-xs">{(lead as any).assigned_profile.full_name?.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  <span className="text-sm">{(lead as any).assigned_profile.full_name}</span>
-                </div>
-              ) : (
-                <span className="text-sm text-slate-400">Sin asignar</span>
-              )}
-            </div>
+              <Textarea
+                placeholder="Agregar comentario (requerido)..."
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                rows={3}
+                disabled={loading}
+                required
+              />
+
+              <Button
+                type="submit"
+                size="sm"
+                disabled={loading || !comment.trim() || !hasChanges}
+              >
+                {loading ? "Guardando..." : "Guardar"}
+              </Button>
+            </form>
           </div>
         </CardContent>
       </Card>

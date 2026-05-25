@@ -6,7 +6,7 @@ import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import { LeadDetailPanel } from "@/components/leads/LeadDetailPanel"
 import { LeadTasksPanel } from "@/components/leads/LeadTasksPanel"
-import { LeadNoteForm } from "@/components/leads/LeadNoteForm"
+import { LeadHistoryPanel } from "@/components/leads/LeadHistoryPanel"
 import type { Lead, LeadStage, Task } from "@/types/database"
 
 export default async function AdminLeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -35,7 +35,7 @@ export default async function AdminLeadDetailPage({ params }: { params: Promise<
       .order("created_at", { ascending: false }),
     admin
       .from("agency_tasks")
-      .select("*, assigned_profile:profiles!assigned_to(full_name)")
+      .select("*, assigned_profile:profiles!assigned_to(id, full_name, avatar_url)")
       .eq("lead_id", id)
       .order("created_at", { ascending: false }),
     admin.from("agency_stages").select("*").order("position"),
@@ -44,7 +44,6 @@ export default async function AdminLeadDetailPage({ params }: { params: Promise<
 
   if (!agencyLead) notFound()
 
-  // Map to shared Lead type
   const lead: Lead = {
     id: agencyLead.id,
     company_id: "agency",
@@ -66,7 +65,6 @@ export default async function AdminLeadDetailPage({ params }: { params: Promise<
 
   const stages: LeadStage[] = (agencyStages || []).map((s) => ({ ...s, company_id: "agency" }))
 
-  // Map tasks to shared Task type
   const tasks: Task[] = (agencyTasks || []).map((t) => ({
     id: t.id,
     company_id: "agency",
@@ -89,7 +87,7 @@ export default async function AdminLeadDetailPage({ params }: { params: Promise<
       </Link>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className="xl:col-span-2 space-y-6">
+        <div className="xl:col-span-2">
           <LeadDetailPanel
             lead={lead}
             stages={stages}
@@ -98,29 +96,6 @@ export default async function AdminLeadDetailPage({ params }: { params: Promise<
             apiPrefix="/api/admin/agency"
             closedRedirectPath="/admin/leads"
           />
-          <LeadNoteForm leadId={id} apiPrefix="/api/admin/agency" />
-          <div className="bg-white rounded-xl border shadow-sm p-6">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-4">Actividad</h2>
-            {agencyActivities && agencyActivities.length > 0 ? (
-              <div className="space-y-3">
-                {agencyActivities.map((act: any) => (
-                  <div key={act.id} className="flex gap-3 py-2 border-b last:border-0">
-                    <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-xs font-semibold flex-shrink-0 mt-0.5">
-                      {act.profile?.full_name?.charAt(0) || "?"}
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm text-slate-700">{act.description}</p>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        {act.profile?.full_name} · {new Date(act.created_at).toLocaleDateString("es-CL")}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-slate-500">Sin actividad registrada</p>
-            )}
-          </div>
         </div>
 
         <div className="space-y-6">
@@ -128,9 +103,10 @@ export default async function AdminLeadDetailPage({ params }: { params: Promise<
             leadId={id}
             tasks={tasks}
             teamMembers={teamMembers || []}
-            companyId="agency"
             apiPrefix="/api/admin/agency"
+            taskApiPrefix="/api/admin/agency"
           />
+          <LeadHistoryPanel activities={(agencyActivities || []) as any} />
         </div>
       </div>
     </div>

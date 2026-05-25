@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import {
   LayoutDashboard, Building2, Users, CreditCard, Zap,
-  Settings, Mail, LogOut, ChevronRight, UserCog,
+  Settings, Mail, LogOut, ChevronRight, UserCog, CheckSquare,
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
@@ -14,6 +14,7 @@ const nav = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/admin/companies", label: "Usuario Empresa", icon: Building2 },
   { href: "/admin/leads", label: "Leads", icon: Zap },
+  { href: "/admin/tasks", label: "Tareas", icon: CheckSquare },
   { href: "/admin/clients", label: "Clientes", icon: Users },
   { href: "/admin/team", label: "Equipo", icon: UserCog },
   { href: "/admin/settings", label: "Configuración", icon: Settings },

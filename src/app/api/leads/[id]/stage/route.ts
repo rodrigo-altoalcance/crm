@@ -9,7 +9,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const profile = await getProfile(supabase)
   if (!profile) return NextResponse.json({ error: "No autorizado" }, { status: 401 })
 
-  const { stage_id } = await request.json()
+  const body = await request.json()
+  const { stage_id, comment } = body
+
+  if (!comment?.trim()) {
+    return NextResponse.json({ error: "El comentario es obligatorio al cambiar etapa" }, { status: 400 })
+  }
 
   const { data: stage } = await supabase
     .from("lead_stages")
@@ -23,6 +28,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "No tienes permiso para cerrar leads" }, { status: 403 })
   }
 
+  // Fetch current stage before updating
+  const { data: currentLead } = await supabase
+    .from("leads")
+    .select("stage_id, stage:lead_stages(id, name)")
+    .eq("id", id)
+    .single()
+
   const { data: lead, error } = await supabase
     .from("leads")
     .update({ stage_id, updated_at: new Date().toISOString() })
@@ -32,17 +44,20 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const activityType = stage.is_final ? "lead_closed" : "stage_changed"
-  const description = stage.is_final
-    ? `Lead cerrado — movido a ${stage.name} por ${profile.full_name}`
-    : `Etapa cambiada a "${stage.name}" por ${profile.full_name}`
+  const fromStage = (currentLead?.stage as any)
 
   await supabase.from("lead_activities").insert({
     lead_id: id,
     user_id: profile.id,
-    type: activityType,
-    description,
-    metadata: { stage_name: stage.name, is_final: stage.is_final },
+    type: stage.is_final ? "lead_closed" : "stage_changed",
+    description: comment.trim(),
+    metadata: {
+      from_stage_id: fromStage?.id ?? null,
+      from_stage_name: fromStage?.name ?? null,
+      to_stage_id: stage.id,
+      to_stage_name: stage.name,
+      is_final: stage.is_final,
+    },
   })
 
   return NextResponse.json(lead)

@@ -192,6 +192,15 @@ export interface AdminAuditLog {
   created_at: string
 }
 
+export interface TaskComment {
+  id: string
+  task_id: string
+  user_id: string | null
+  text: string
+  created_at: string
+  profile?: Pick<Profile, "full_name" | "avatar_url">
+}
+
 export interface AgencyLead {
   id: string
   stage_id: string | null

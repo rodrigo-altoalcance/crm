@@ -3,7 +3,6 @@ import { getProfile } from "@/lib/auth/getProfile"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { TasksView } from "@/components/tasks/TasksView"
-import { canViewAllLeads } from "@/lib/auth/roles"
 
 export default async function TasksPage() {
   const supabase = await createClient()
@@ -30,10 +29,9 @@ export default async function TasksPage() {
     .eq("company_id", companyId)
     .order("created_at", { ascending: false })
 
-  // Sellers without can_view_all_leads only see their own tasks
-  const viewAll = canViewAllLeads(profile)
-  if (profile.role === "seller" && !viewAll) {
-    query = query.eq("assigned_to", profile.id)
+  // Sellers see only their own tasks (assigned to them or created by them)
+  if (profile.role === "seller") {
+    query = query.or(`assigned_to.eq.${profile.id},created_by.eq.${profile.id}`)
   }
 
   const { data: tasks } = await query
@@ -49,6 +47,7 @@ export default async function TasksPage() {
         tasks={tasks || []}
         teamMembers={teamMembers || []}
         companyId={companyId}
+        tasksApiPrefix="/api"
       />
     </div>
   )
