@@ -7,6 +7,7 @@ import { ArrowLeft } from "lucide-react"
 import { LeadDetailPanel } from "@/components/leads/LeadDetailPanel"
 import { LeadTasksPanel } from "@/components/leads/LeadTasksPanel"
 import { LeadHistoryPanel } from "@/components/leads/LeadHistoryPanel"
+import { LeadNoteForm } from "@/components/leads/LeadNoteForm"
 import type { Lead, LeadStage, Task } from "@/types/database"
 
 export default async function AdminLeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -106,6 +107,7 @@ export default async function AdminLeadDetailPage({ params }: { params: Promise<
             apiPrefix="/api/admin/agency"
             taskApiPrefix="/api/admin/agency"
           />
+          <LeadNoteForm leadId={id} apiPrefix="/api/admin/agency" />
           <LeadHistoryPanel activities={(agencyActivities || []) as any} />
         </div>
       </div>
