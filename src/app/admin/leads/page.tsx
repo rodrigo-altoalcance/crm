@@ -43,6 +43,7 @@ export default async function AdminLeadsPage() {
     assigned_to: l.assigned_to ?? null,
     notes: null,
     custom_fields: l.custom_fields ?? {},
+    scheduled_at: null,
     created_at: l.created_at,
     updated_at: l.updated_at ?? l.created_at,
     stage: l.stage ? { ...l.stage, company_id: "agency" } : undefined,
