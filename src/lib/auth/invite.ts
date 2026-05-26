@@ -56,17 +56,18 @@ export async function generateInviteLink(
   // Actualizar metadatos del usuario auth
   await admin.auth.admin.updateUserById(userId, { user_metadata: metadata })
 
-  // Restaurar perfil con el nuevo acceso
+  // Restaurar perfil con el nuevo acceso (upsert por si fue eliminado en cascada)
   if (metadata.company_id) {
-    const profileUpdate: Record<string, unknown> = {
+    const profileData: Record<string, unknown> = {
+      id: userId,
       company_id: metadata.company_id,
       role: metadata.role,
       full_name: metadata.full_name,
     }
     if (metadata.permissions) {
-      try { profileUpdate.permissions = JSON.parse(metadata.permissions) } catch { /* skip */ }
+      try { profileData.permissions = JSON.parse(metadata.permissions) } catch { /* skip */ }
     }
-    await admin.from("profiles").update(profileUpdate).eq("id", userId)
+    await admin.from("profiles").upsert(profileData, { onConflict: "id" })
   }
 
   return { action_link: recoveryData.properties.action_link, user_id: userId }

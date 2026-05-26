@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { createAdminClient } from "@/lib/supabase/admin"
 import { getProfile } from "@/lib/auth/getProfile"
+import { generateInviteLink } from "@/lib/auth/invite"
 import { sendWelcomeEmail } from "@/lib/email/welcome"
 
 export async function GET() {
@@ -51,30 +51,24 @@ export async function POST(request: Request) {
   // Seed default pipeline stages for the new company
   await supabase.rpc("seed_default_stages", { p_company_id: company.id })
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://crm.altoalcance.cl"
-  const adminClient = createAdminClient()
-  const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
-    type: "invite",
-    email: admin_email,
-    options: {
-      redirectTo: `${siteUrl}/activar-cuenta`,
-      data: {
-        role: "company_admin",
-        company_id: company.id,
-        full_name: admin_full_name || "",
-      },
-    },
-  })
-
-  if (linkError) {
-    return NextResponse.json({ error: linkError.message }, { status: 500 })
+  let inviteLink: string
+  try {
+    const result = await generateInviteLink(admin_email, {
+      role: "company_admin",
+      company_id: company.id,
+      full_name: admin_full_name || "",
+    })
+    inviteLink = result.action_link
+  } catch (inviteError: unknown) {
+    const msg = inviteError instanceof Error ? inviteError.message : "Error generando link de invitación"
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 
   try {
     await sendWelcomeEmail({
       to: admin_email,
       companyName: company.name,
-      verificationLink: linkData.properties.action_link,
+      verificationLink: inviteLink,
     })
   } catch (emailError) {
     console.error("Error enviando email de bienvenida:", emailError)
