@@ -6,12 +6,13 @@ import { toast } from "sonner"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { CloseLeadConfirmDialog } from "./CloseLeadConfirmDialog"
-import { formatDate } from "@/lib/utils"
-import { Mail, Phone, MessageSquare, Calendar } from "lucide-react"
+import { formatDate, formatScheduledAt } from "@/lib/utils"
+import { Mail, Phone, MessageSquare, Calendar, Pencil, X, Check } from "lucide-react"
 import type { Lead, LeadStage, Profile } from "@/types/database"
 import { canCloseLead } from "@/lib/auth/roles"
 
@@ -38,6 +39,19 @@ export function LeadDetailPanel({ lead, stages, teamMembers, profile, apiPrefix 
   const [selectedStageId, setSelectedStageId] = useState(lead.stage_id)
   const [comment, setComment] = useState("")
   const [loading, setLoading] = useState(false)
+  const [editingScheduled, setEditingScheduled] = useState(false)
+  const [scheduledValue, setScheduledValue] = useState(() => {
+    if (!lead.scheduled_at) return ""
+    const d = new Date(lead.scheduled_at)
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit",
+      timeZone: "America/Santiago", hour12: false,
+    }).formatToParts(d)
+    const get = (type: string) => parts.find((p) => p.type === type)?.value ?? ""
+    return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`
+  })
+  const [savingScheduled, setSavingScheduled] = useState(false)
 
   const closePerm = canCloseLead(profile)
   const currentStage = stages.find((s) => s.id === currentStageId)
@@ -83,6 +97,24 @@ export function LeadDetailPanel({ lead, stages, teamMembers, profile, apiPrefix 
     setLoading(false)
   }
 
+  async function saveScheduledAt() {
+    setSavingScheduled(true)
+    const value = scheduledValue ? new Date(scheduledValue).toISOString() : null
+    const res = await fetch(`${apiPrefix}/leads/${lead.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scheduled_at: value }),
+    })
+    if (res.ok) {
+      toast.success("Fecha de agenda actualizada")
+      setEditingScheduled(false)
+      router.refresh()
+    } else {
+      toast.error("Error al guardar la fecha")
+    }
+    setSavingScheduled(false)
+  }
+
   async function handleConfirmClose() {
     if (!pendingStageId) return
     await submitStageChange(pendingStageId, comment)
@@ -118,6 +150,36 @@ export function LeadDetailPanel({ lead, stages, teamMembers, profile, apiPrefix 
               )}
               <div className="flex items-center gap-2 text-sm text-slate-600">
                 <Calendar className="w-4 h-4 text-slate-400" /> {formatDate(lead.created_at)}
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Fecha de agenda inicial</p>
+                {editingScheduled ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="datetime-local"
+                      value={scheduledValue}
+                      onChange={(e) => setScheduledValue(e.target.value)}
+                      className="h-8 text-sm"
+                      disabled={savingScheduled}
+                    />
+                    <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600" onClick={saveScheduledAt} disabled={savingScheduled}>
+                      <Check className="w-4 h-4" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400" onClick={() => setEditingScheduled(false)} disabled={savingScheduled}>
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-slate-600">
+                      {lead.scheduled_at ? formatScheduledAt(lead.scheduled_at) : <span className="text-slate-400">Sin fecha</span>}
+                    </span>
+                    <button onClick={() => setEditingScheduled(true)} className="text-slate-400 hover:text-indigo-600 transition-colors">
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
             {lead.message && (

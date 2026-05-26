@@ -26,6 +26,7 @@ export function NewLeadForm({ stages, teamMembers, redirectPath = "/dashboard/le
     last_name: "",
     email: "",
     phone: "",
+    scheduled_at: "",
     message: "",
     source: "manual",
     stage_id: stages[0]?.id || "",
@@ -49,6 +50,7 @@ export function NewLeadForm({ stages, teamMembers, redirectPath = "/dashboard/le
           assigned_to: form.assigned_to || null,
           phone: form.phone || null,
           message: form.message || null,
+          scheduled_at: form.scheduled_at ? new Date(form.scheduled_at).toISOString() : null,
         }),
       })
       if (!res.ok) {
@@ -114,6 +116,16 @@ export function NewLeadForm({ stages, teamMembers, redirectPath = "/dashboard/le
                 placeholder="+56 9 1234 5678"
               />
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="scheduled_at">Fecha de agenda inicial</Label>
+            <Input
+              id="scheduled_at"
+              type="datetime-local"
+              value={form.scheduled_at}
+              onChange={(e) => set("scheduled_at", e.target.value)}
+            />
           </div>
 
           <div className="space-y-1.5">

@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
-import { formatDate } from "@/lib/utils"
+import { formatDate, formatScheduledAt } from "@/lib/utils"
 import type { Lead, LeadStage, Profile } from "@/types/database"
 
 interface LeadsTableProps {
@@ -70,6 +70,7 @@ export function LeadsTable({
               <TableHead>Fuente</TableHead>
               <TableHead>Etapa</TableHead>
               <TableHead>Asignado</TableHead>
+              <TableHead>Fecha agenda</TableHead>
               <TableHead>Fecha</TableHead>
               <TableHead className="w-10" />
             </TableRow>
@@ -77,7 +78,7 @@ export function LeadsTable({
           <TableBody>
             {leads.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-slate-500 py-12">
+                <TableCell colSpan={8} className="text-center text-slate-500 py-12">
                   No hay leads para mostrar
                 </TableCell>
               </TableRow>
@@ -121,6 +122,13 @@ export function LeadsTable({
                       </div>
                     ) : (
                       <span className="text-slate-400 text-sm">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {lead.scheduled_at ? (
+                      <span className="text-sm text-slate-500">{formatScheduledAt(lead.scheduled_at)}</span>
+                    ) : (
+                      <span className="text-slate-400">—</span>
                     )}
                   </TableCell>
                   <TableCell>

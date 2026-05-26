@@ -13,7 +13,7 @@ const nav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/dashboard/leads", label: "Leads", icon: Zap },
   { href: "/dashboard/clients", label: "Clientes", icon: Users },
-  { href: "/dashboard/tasks", label: "Tareas", icon: CheckSquare },
+  { href: "/dashboard/tasks", label: "Mis tareas", icon: CheckSquare },
   { href: "/dashboard/team", label: "Equipo", icon: Building2 },
   { href: "/dashboard/settings", label: "Configuración", icon: Settings },
 ]

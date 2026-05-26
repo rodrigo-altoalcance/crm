@@ -33,12 +33,12 @@ export async function POST(
   if (profile?.role !== "super_admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
   const body = await request.json()
-  const { first_name, last_name, email, phone, message, source, stage_id, assigned_to } = body
+  const { first_name, last_name, email, phone, message, source, stage_id, assigned_to, scheduled_at } = body
 
   const admin = createAdminClient()
   const { data: lead, error } = await admin
     .from("leads")
-    .insert({ company_id: companyId, first_name, last_name, email, phone, message, source: source || "manual", stage_id, assigned_to })
+    .insert({ company_id: companyId, first_name, last_name, email, phone, message, source: source || "manual", stage_id, assigned_to, scheduled_at: scheduled_at || null })
     .select()
     .single()
 

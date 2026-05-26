@@ -2,12 +2,9 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Plus, Calendar, Link as LinkIcon } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Calendar, Link as LinkIcon } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { TaskForm } from "./TaskForm"
 import { TaskDetailModal } from "./TaskDetailModal"
 import { EmptyState } from "@/components/shared/EmptyState"
 import { PriorityBadge } from "@/components/shared/PriorityBadge"
@@ -34,7 +31,6 @@ interface TasksViewProps {
 
 export function TasksView({ tasks, teamMembers, companyId, tasksApiPrefix = "/api" }: TasksViewProps) {
   const router = useRouter()
-  const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [activeStatuses, setActiveStatuses] = useState<StatusFilter[]>(["pending", "in_progress"])
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all")
@@ -53,11 +49,6 @@ export function TasksView({ tasks, teamMembers, companyId, tasksApiPrefix = "/ap
     if (assigneeFilter !== "all" && (t as any).assigned_profile?.id !== assigneeFilter && t.assigned_to !== assigneeFilter) return false
     return true
   })
-
-  function handleSuccess() {
-    setDialogOpen(false)
-    router.refresh()
-  }
 
   return (
     <>
@@ -95,9 +86,6 @@ export function TasksView({ tasks, teamMembers, companyId, tasksApiPrefix = "/ap
               </SelectContent>
             </Select>
           )}
-          <Button size="sm" onClick={() => setDialogOpen(true)}>
-            <Plus className="w-4 h-4 mr-1" /> Nueva tarea
-          </Button>
         </div>
       </div>
 
@@ -172,21 +160,6 @@ export function TasksView({ tasks, teamMembers, companyId, tasksApiPrefix = "/ap
           })}
         </div>
       )}
-
-      {/* Create task dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Nueva tarea</DialogTitle>
-          </DialogHeader>
-          <TaskForm
-            teamMembers={teamMembers}
-            companyId={companyId}
-            onSuccess={handleSuccess}
-            tasksApiPrefix={tasksApiPrefix}
-          />
-        </DialogContent>
-      </Dialog>
 
       {/* Task detail modal */}
       {selectedTask && (

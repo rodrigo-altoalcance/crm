@@ -39,7 +39,7 @@ export default async function TasksPage() {
   return (
     <div className="p-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900">Tareas</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Mis tareas</h1>
         <p className="text-sm text-slate-500 mt-1">{tasks?.length || 0} tarea{(tasks?.length || 0) !== 1 ? "s" : ""} en total</p>
       </div>
 

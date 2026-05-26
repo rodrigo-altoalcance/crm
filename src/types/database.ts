@@ -82,6 +82,7 @@ export interface Lead {
   assigned_to: string | null
   notes: string | null
   custom_fields: Record<string, string>
+  scheduled_at: string | null
   created_at: string
   updated_at: string
   stage?: LeadStage

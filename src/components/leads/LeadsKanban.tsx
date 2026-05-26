@@ -153,7 +153,9 @@ export function LeadsKanban({ leads: initialLeads, stages, profile, basePath = "
       <Dialog open={!!pendingMove} onOpenChange={(v) => { if (!v) cancelMove() }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>¿Por qué cambias esta etapa?</DialogTitle>
+            <DialogTitle>
+              {pendingMove ? `Mover lead: ${pendingMove.lead.first_name} ${pendingMove.lead.last_name}` : "Mover lead"}
+            </DialogTitle>
           </DialogHeader>
 
           {pendingMove && (

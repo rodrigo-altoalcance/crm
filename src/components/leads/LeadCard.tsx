@@ -2,7 +2,7 @@ import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Phone, Mail, Calendar } from "lucide-react"
-import { formatDate } from "@/lib/utils"
+import { formatDate, formatScheduledAt } from "@/lib/utils"
 import type { Lead } from "@/types/database"
 
 const sourceLabels: Record<string, { label: string; color: string }> = {
@@ -35,6 +35,11 @@ export function LeadCard({ lead, basePath = "/dashboard/leads" }: { lead: Lead; 
           {lead.phone && (
             <div className="flex items-center gap-1.5 text-xs text-slate-500">
               <Phone className="w-3 h-3" /> {lead.phone}
+            </div>
+          )}
+          {lead.scheduled_at && (
+            <div className="flex items-center gap-1.5 text-xs text-indigo-600 font-medium">
+              <Calendar className="w-3 h-3" /> Fecha agenda: {formatScheduledAt(lead.scheduled_at)}
             </div>
           )}
         </div>
