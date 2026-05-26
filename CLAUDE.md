@@ -9,7 +9,7 @@
 - **@supabase/ssr 0.10.3** — cliente server en `src/lib/supabase/server.ts`, browser en `client.ts`
 - **Resend 6.x** — mailer base en `src/lib/email/mailer.ts`, remitente fijo `Alto Alcance CRM <noreply@altoalcance.cl>`, clave en `RESEND_API_KEY`
 - **Sonner** para toasts, **@hello-pangea/dnd** para Kanban
-- **Deploy**: Vercel (`crm30.vercel.app`) conectado a `rodrigo-altoalcance/crm` rama `main`
+- **Deploy**: Vercel (`crm.altoalcance.cl`) conectado a `rodrigo-altoalcance/crm` rama `main`
 
 ## Roles
 | Rol | Acceso |

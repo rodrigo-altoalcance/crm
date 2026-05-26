@@ -51,7 +51,7 @@ export async function POST(request: Request) {
   // Seed default pipeline stages for the new company
   await supabase.rpc("seed_default_stages", { p_company_id: company.id })
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://crm.altoalcance.cl"
   const adminClient = createAdminClient()
   const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
     type: "invite",

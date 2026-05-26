@@ -22,7 +22,7 @@ export async function generateInviteLink(
   metadata: InviteMetadata
 ): Promise<InviteLinkResult> {
   const admin = createAdminClient()
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://crm.altoalcance.cl"
   const redirectTo = `${siteUrl}/activar-cuenta`
 
   const { data: inviteData, error: inviteError } = await admin.auth.admin.generateLink({
