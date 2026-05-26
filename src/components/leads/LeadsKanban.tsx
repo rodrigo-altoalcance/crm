@@ -5,69 +5,87 @@ import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-p
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { LeadCard } from "./LeadCard"
-import { CloseLeadConfirmDialog } from "./CloseLeadConfirmDialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
 import type { Lead, LeadStage, Profile } from "@/types/database"
 
 interface LeadsKanbanProps {
   leads: Lead[]
   stages: LeadStage[]
   profile: Profile
-  companyId: string
+  companyId?: string
   basePath?: string
   apiPrefix?: string
 }
 
-export function LeadsKanban({ leads: initialLeads, stages, profile, companyId, basePath = "/dashboard/leads", apiPrefix = "/api" }: LeadsKanbanProps) {
+interface PendingMove {
+  lead: Lead
+  fromStage: LeadStage
+  toStage: LeadStage
+}
+
+export function LeadsKanban({ leads: initialLeads, stages, profile, basePath = "/dashboard/leads", apiPrefix = "/api" }: LeadsKanbanProps) {
   const [leads, setLeads] = useState(initialLeads)
-  const [closingLead, setClosingLead] = useState<Lead | null>(null)
-  const [pendingStageId, setPendingStageId] = useState<string | null>(null)
+  const [pendingMove, setPendingMove] = useState<PendingMove | null>(null)
+  const [moveComment, setMoveComment] = useState("")
+  const [moving, setMoving] = useState(false)
   const router = useRouter()
 
   const canClose = profile.role === "super_admin" || profile.role === "company_admin" || profile.permissions?.can_close_leads
 
-  const onDragEnd = useCallback(async (result: DropResult) => {
+  const onDragEnd = useCallback((result: DropResult) => {
     if (!result.destination) return
     const { draggableId, destination } = result
     const newStageId = destination.droppableId
     const lead = leads.find((l) => l.id === draggableId)
     if (!lead || lead.stage_id === newStageId) return
 
-    const targetStage = stages.find((s) => s.id === newStageId)
+    const toStage = stages.find((s) => s.id === newStageId)
+    const fromStage = stages.find((s) => s.id === lead.stage_id)
+    if (!toStage || !fromStage) return
 
-    if (targetStage?.is_final && canClose) {
-      setPendingStageId(newStageId)
-      setClosingLead(lead)
+    if (toStage.is_final && !canClose) {
+      toast.error("No tienes permiso para cerrar leads")
       return
     }
 
-    await moveLeadToStage(lead.id, newStageId)
+    setPendingMove({ lead, fromStage, toStage })
+    setMoveComment("")
   }, [leads, stages, canClose])
 
-  async function moveLeadToStage(leadId: string, stageId: string) {
+  async function confirmMove() {
+    if (!pendingMove || !moveComment.trim()) return
+    setMoving(true)
+
     setLeads((prev) =>
-      prev.map((l) => l.id === leadId ? { ...l, stage_id: stageId } : l)
+      prev.map((l) => l.id === pendingMove.lead.id ? { ...l, stage_id: pendingMove.toStage.id } : l)
     )
 
-    const res = await fetch(`${apiPrefix}/leads/${leadId}/stage`, {
+    const res = await fetch(`${apiPrefix}/leads/${pendingMove.lead.id}/stage`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ stage_id: stageId }),
+      body: JSON.stringify({ stage_id: pendingMove.toStage.id, comment: moveComment.trim() }),
     })
 
     if (!res.ok) {
       toast.error("Error al mover lead")
       router.refresh()
     } else {
+      if (pendingMove.toStage.is_final) {
+        toast.success("Lead cerrado y movido a Clientes")
+      }
       router.refresh()
     }
+
+    setPendingMove(null)
+    setMoveComment("")
+    setMoving(false)
   }
 
-  async function handleConfirmClose() {
-    if (!closingLead || !pendingStageId) return
-    await moveLeadToStage(closingLead.id, pendingStageId)
-    setClosingLead(null)
-    setPendingStageId(null)
-    toast.success("Lead cerrado y movido a Clientes")
+  function cancelMove() {
+    setPendingMove(null)
+    setMoveComment("")
   }
 
   const leadsByStage = stages.reduce<Record<string, Lead[]>>((acc, stage) => {
@@ -132,17 +150,47 @@ export function LeadsKanban({ leads: initialLeads, stages, profile, companyId, b
         </div>
       </DragDropContext>
 
-      {closingLead && (
-        <CloseLeadConfirmDialog
-          open={!!closingLead}
-          lead={closingLead}
-          onConfirm={handleConfirmClose}
-          onCancel={() => {
-            setClosingLead(null)
-            setPendingStageId(null)
-          }}
-        />
-      )}
+      <Dialog open={!!pendingMove} onOpenChange={(v) => { if (!v) cancelMove() }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>¿Por qué cambias esta etapa?</DialogTitle>
+          </DialogHeader>
+
+          {pendingMove && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="bg-slate-100 text-slate-700 rounded px-2 py-1">{pendingMove.fromStage.name}</span>
+                <span className="text-slate-400">→</span>
+                <span className="bg-indigo-100 text-indigo-700 font-medium rounded px-2 py-1">{pendingMove.toStage.name}</span>
+              </div>
+
+              {pendingMove.toStage.is_final && (
+                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  Este lead será cerrado y movido al módulo de Clientes.
+                </p>
+              )}
+
+              <Textarea
+                placeholder="Escribe un comentario (requerido)..."
+                value={moveComment}
+                onChange={(e) => setMoveComment(e.target.value)}
+                rows={3}
+                autoFocus
+                disabled={moving}
+              />
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={cancelMove} disabled={moving}>
+              Cancelar
+            </Button>
+            <Button onClick={confirmMove} disabled={!moveComment.trim() || moving}>
+              {moving ? "Guardando..." : "Aceptar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

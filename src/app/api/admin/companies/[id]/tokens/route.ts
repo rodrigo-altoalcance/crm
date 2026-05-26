@@ -5,9 +5,9 @@ import { getProfile } from "@/lib/auth/getProfile"
 
 export async function GET(
   _: Request,
-  { params }: { params: Promise<{ companyId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { companyId } = await params
+  const { id: companyId } = await params
   const supabase = await createClient()
   const profile = await getProfile(supabase)
   if (!profile || profile.role !== "super_admin") {
@@ -26,9 +26,9 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ companyId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { companyId } = await params
+  const { id: companyId } = await params
   const supabase = await createClient()
   const profile = await getProfile(supabase)
   if (!profile || profile.role !== "super_admin") {
@@ -49,9 +49,9 @@ export async function POST(
 
 export async function PATCH(
   request: Request,
-  { params }: { params: Promise<{ companyId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { companyId } = await params
+  const { id: companyId } = await params
   const supabase = await createClient()
   const profile = await getProfile(supabase)
   if (!profile || profile.role !== "super_admin") {

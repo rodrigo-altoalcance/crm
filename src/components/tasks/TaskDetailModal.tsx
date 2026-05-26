@@ -35,9 +35,11 @@ export function TaskDetailModal({
   onUpdated,
 }: TaskDetailModalProps) {
   const [status, setStatus] = useState(task.status)
+  const [pendingStatus, setPendingStatus] = useState<Task["status"] | null>(null)
+  const [statusComment, setStatusComment] = useState("")
   const [comments, setComments] = useState<TaskComment[]>([])
   const [newComment, setNewComment] = useState("")
-  const [savingStatus, setSavingStatus] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [savingComment, setSavingComment] = useState(false)
   const [loadingComments, setLoadingComments] = useState(false)
 
@@ -47,6 +49,8 @@ export function TaskDetailModal({
   useEffect(() => {
     if (!open) return
     setStatus(task.status)
+    setPendingStatus(null)
+    setStatusComment("")
     loadComments()
   }, [open, task.id])
 
@@ -62,29 +66,59 @@ export function TaskDetailModal({
     }
   }
 
-  async function handleStatusChange(newStatus: string) {
-    if (newStatus === status) return
-    setSavingStatus(true)
-    const res = await fetch(taskUrl, {
+  function handleSelectStatus(newStatus: string) {
+    const s = newStatus as Task["status"]
+    if (s === status) {
+      setPendingStatus(null)
+      setStatusComment("")
+    } else {
+      setPendingStatus(s)
+    }
+  }
+
+  async function handleSaveStatusChange(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (!pendingStatus || !statusComment.trim()) return
+    setSaving(true)
+
+    // 1. POST comment first (required)
+    const commentRes = await fetch(commentsUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: statusComment.trim() }),
+    })
+    if (!commentRes.ok) {
+      const d = await commentRes.json().catch(() => ({}))
+      toast.error(d.error || "Error al guardar comentario")
+      setSaving(false)
+      return
+    }
+    const savedComment = await commentRes.json()
+    setComments((prev) => [...prev, savedComment])
+
+    // 2. PATCH status
+    const statusRes = await fetch(taskUrl, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: newStatus }),
+      body: JSON.stringify({ status: pendingStatus }),
     })
-    if (res.ok) {
-      setStatus(newStatus as Task["status"])
+    if (statusRes.ok) {
+      setStatus(pendingStatus)
+      setPendingStatus(null)
+      setStatusComment("")
       toast.success("Estado actualizado")
-      if (newStatus === "completed") {
+      if (pendingStatus === "completed") {
         onUpdated()
         return
       }
     } else {
-      const data = await res.json().catch(() => ({}))
-      toast.error(data.error || "Error al actualizar estado")
+      const d = await statusRes.json().catch(() => ({}))
+      toast.error(d.error || "Error al actualizar estado")
     }
-    setSavingStatus(false)
+    setSaving(false)
   }
 
-  async function handleAddComment(e: React.FormEvent) {
+  async function handleAddComment(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (!newComment.trim()) return
     setSavingComment(true)
@@ -105,7 +139,8 @@ export function TaskDetailModal({
     setSavingComment(false)
   }
 
-  const sc = statusConfig[status as keyof typeof statusConfig] ?? statusConfig.pending
+  const displayStatus = pendingStatus ?? status
+  const sc = statusConfig[displayStatus as keyof typeof statusConfig] ?? statusConfig.pending
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
@@ -142,32 +177,6 @@ export function TaskDetailModal({
             <PriorityBadge priority={task.priority} />
           </div>
 
-          {/* Status selector */}
-          <div className="space-y-1.5">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Estado</p>
-            <div className="flex items-center gap-3">
-              <Select value={status} onValueChange={handleStatusChange} disabled={savingStatus}>
-                <SelectTrigger className="w-44">
-                  <SelectValue>
-                    <Badge variant="outline" className={`text-xs ${sc.className}`}>{sc.label}</Badge>
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pending">
-                    <Badge variant="outline" className="text-xs bg-yellow-100 text-yellow-700 border-yellow-200">Pendiente</Badge>
-                  </SelectItem>
-                  <SelectItem value="in_progress">
-                    <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700 border-blue-200">En Progreso</Badge>
-                  </SelectItem>
-                  <SelectItem value="completed">
-                    <Badge variant="outline" className="text-xs bg-green-100 text-green-700 border-green-200">Completada</Badge>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              {savingStatus && <span className="text-xs text-slate-400">Guardando...</span>}
-            </div>
-          </div>
-
           {/* Task description */}
           {task.description && (
             <div className="space-y-1">
@@ -175,6 +184,55 @@ export function TaskDetailModal({
               <p className="text-sm text-slate-700">{task.description}</p>
             </div>
           )}
+
+          {/* Status change with required comment */}
+          <div className="space-y-3 border rounded-lg p-3 bg-slate-50">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Cambiar estado</p>
+            <Select value={displayStatus} onValueChange={handleSelectStatus} disabled={saving}>
+              <SelectTrigger className="w-44 bg-white">
+                <SelectValue>
+                  <Badge variant="outline" className={`text-xs ${sc.className}`}>{sc.label}</Badge>
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pending">
+                  <Badge variant="outline" className="text-xs bg-yellow-100 text-yellow-700 border-yellow-200">Pendiente</Badge>
+                </SelectItem>
+                <SelectItem value="in_progress">
+                  <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700 border-blue-200">En Progreso</Badge>
+                </SelectItem>
+                <SelectItem value="completed">
+                  <Badge variant="outline" className="text-xs bg-green-100 text-green-700 border-green-200">Completada</Badge>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+
+            {pendingStatus && pendingStatus !== status && (
+              <form onSubmit={handleSaveStatusChange} className="space-y-2">
+                <Textarea
+                  placeholder="Comenta qué hiciste (requerido para guardar el estado)..."
+                  value={statusComment}
+                  onChange={(e) => setStatusComment(e.target.value)}
+                  rows={2}
+                  disabled={saving}
+                />
+                <div className="flex gap-2">
+                  <Button type="submit" size="sm" disabled={!statusComment.trim() || saving}>
+                    {saving ? "Guardando..." : "Guardar"}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={saving}
+                    onClick={() => { setPendingStatus(null); setStatusComment("") }}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </form>
+            )}
+          </div>
 
           {/* Comments */}
           <div className="space-y-3">
@@ -214,14 +272,14 @@ export function TaskDetailModal({
 
             <form onSubmit={handleAddComment} className="space-y-2">
               <Textarea
-                placeholder="Agregar un comentario..."
+                placeholder="Agregar un comentario libre..."
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 rows={2}
                 disabled={savingComment}
               />
               <Button type="submit" size="sm" disabled={savingComment || !newComment.trim()}>
-                {savingComment ? "Guardando..." : "Guardar comentario"}
+                {savingComment ? "Guardando..." : "Agregar comentario"}
               </Button>
             </form>
           </div>

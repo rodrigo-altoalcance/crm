@@ -30,9 +30,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     profile.role === "super_admin"
       ? cookieStore.get("impersonated_company")?.value
       : profile.company_id
-  if (!companyId) return NextResponse.json({ error: "No company" }, { status: 403 })
 
-  // Verify task belongs to this company (super_admin without impersonation can access any task)
+  // Non-super_admin must have a companyId
+  if (!companyId && profile.role !== "super_admin") {
+    return NextResponse.json({ error: "No company" }, { status: 403 })
+  }
+
+  // Verify task exists and belongs to the right company
   let taskQuery = supabase.from("tasks").select("id").eq("id", id)
   if (companyId) taskQuery = taskQuery.eq("company_id", companyId)
   const { data: task } = await taskQuery.single()

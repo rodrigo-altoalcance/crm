@@ -5,9 +5,9 @@ import { getProfile } from "@/lib/auth/getProfile"
 
 export async function DELETE(
   _: Request,
-  { params }: { params: Promise<{ companyId: string; id: string }> }
+  { params }: { params: Promise<{ id: string; tokenId: string }> }
 ) {
-  const { companyId, id } = await params
+  const { id: companyId, tokenId } = await params
   const supabase = await createClient()
   const profile = await getProfile(supabase)
   if (!profile || profile.role !== "super_admin") {
@@ -18,7 +18,7 @@ export async function DELETE(
   const { error } = await admin
     .from("webhook_tokens")
     .delete()
-    .eq("id", id)
+    .eq("id", tokenId)
     .eq("company_id", companyId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -27,9 +27,9 @@ export async function DELETE(
 
 export async function POST(
   _: Request,
-  { params }: { params: Promise<{ companyId: string; id: string }> }
+  { params }: { params: Promise<{ id: string; tokenId: string }> }
 ) {
-  const { companyId, id } = await params
+  const { id: companyId, tokenId } = await params
   const supabase = await createClient()
   const profile = await getProfile(supabase)
   if (!profile || profile.role !== "super_admin") {
@@ -40,13 +40,13 @@ export async function POST(
   const { data: existing } = await admin
     .from("webhook_tokens")
     .select("name")
-    .eq("id", id)
+    .eq("id", tokenId)
     .eq("company_id", companyId)
     .single()
 
   if (!existing) return NextResponse.json({ error: "Token no encontrado" }, { status: 404 })
 
-  await admin.from("webhook_tokens").delete().eq("id", id).eq("company_id", companyId)
+  await admin.from("webhook_tokens").delete().eq("id", tokenId).eq("company_id", companyId)
 
   const { data, error } = await admin
     .from("webhook_tokens")
