@@ -36,7 +36,7 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient()
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://crm.altoalcance.cl"
   const { data: linkData, error } = await admin.auth.admin.generateLink({
     type: "invite",
     email,

@@ -30,5 +30,5 @@ export async function GET() {
   const cookieStore = await cookies()
   cookieStore.delete("impersonated_company")
 
-  return NextResponse.redirect(new URL("/admin/companies", process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"))
+  return NextResponse.redirect(new URL("/admin/companies", process.env.NEXT_PUBLIC_SITE_URL || "https://crm.altoalcance.cl"))
 }
