@@ -34,7 +34,7 @@ src/
 │   ├── dashboard/              # Portal empresa
 │   │   ├── leads/              # Kanban + tabla + detalle
 │   │   ├── clients/            # Clientes convertidos + registros
-│   │   ├── tasks/              # Tareas
+│   │   ├── tasks/              # Mis tareas (label en sidebar y h1)
 │   │   ├── team/               # Equipo + permisos
 │   │   └── settings/           # Etapas, Org, Integraciones, Campos
 │   └── api/
@@ -64,7 +64,7 @@ src/
     ├── email/mailer.ts         # sendEmail({ to, subject, html }) — usa RESEND_API_KEY
     ├── email/welcome.ts        # sendWelcomeEmail({ to, companyName, verificationLink }) — usa template de BD
     ├── email/invitation.ts     # sendInvitationEmail({ to, inviteeName, companyName, inviteLink }) — usa template BD
-    └── utils.ts                # cn(), formatCLP(), formatDate()
+    └── utils.ts                # cn(), formatCLP(), formatDate(), formatScheduledAt() — DD/MM/YYYY HH:mm en America/Santiago
 ```
 
 ## Patrones críticos
@@ -102,7 +102,7 @@ if (ids.length > 0) await supabase.from("leads").select("*").in("stage_id", ids)
 ```
 companies          id, name, monthly_fee, currency, payment_day, max_users, status, org_*
 profiles           id(=auth.uid), company_id, role, full_name, permissions(jsonb)
-leads              id, company_id, stage_id, first_name, last_name, email, phone, source, custom_fields(jsonb)
+leads              id, company_id, stage_id, first_name, last_name, email, phone, source, custom_fields(jsonb), scheduled_at(timestamptz)
 lead_stages        id, company_id, name, color, position, is_final, is_lost
 lead_activities    id, lead_id, user_id, type, description, metadata(jsonb)
 tasks              id, company_id, lead_id, title, priority, status, assigned_to, due_date
@@ -225,6 +225,25 @@ PATCH  /api/admin/companies/[companyId]/tokens         → actualiza field_mappi
 DELETE /api/admin/companies/[companyId]/tokens/[id]    → elimina token
 POST   /api/admin/companies/[companyId]/tokens/[id]    → regenera token (elimina y recrea)
 ```
+
+## Campo scheduled_at — Fecha de agenda inicial
+
+- Columna `leads.scheduled_at TIMESTAMPTZ NULL` — llenado manualmente, nunca automático
+- Aparece en: formulario de creación (`NewLeadForm`), detalle del lead (edición inline con ícono lápiz → input → ✓/✗), columna en tabla (`LeadsTable`), tarjeta kanban (`LeadCard` — solo si tiene valor, en indigo)
+- Formato de visualización siempre `DD/MM/YYYY HH:mm` en zona `America/Santiago` via `formatScheduledAt()` de `src/lib/utils.ts`
+- Para convertir datetime-local a ISO al guardar: `new Date(value).toISOString()`
+- El PATCH de edición inline llama a `${apiPrefix}/leads/${lead.id}` con `{ scheduled_at: isoString | null }`
+
+## Módulo "Mis tareas" (`/dashboard/tasks`)
+
+- Label en sidebar y h1 de página: **"Mis tareas"** (no "Tareas")
+- El botón "Nueva tarea" fue eliminado de `TasksView` — la creación de tareas solo se hace desde el detalle de un lead
+- `TasksView` sigue mostrando el modal de detalle al hacer clic en una tarea existente
+
+## Kanban — popup de mover lead
+
+- El `Dialog` de comentario obligatorio al mover un lead muestra el título: `"Mover lead: {first_name} {last_name}"`
+- Componente: `LeadsKanban.tsx`
 
 ## Convenciones UI
 - Sidebar oscuro (`#0F172A`), accent `#6366F1` (indigo-500), fondo `#F8FAFC`
