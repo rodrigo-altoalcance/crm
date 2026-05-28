@@ -13,6 +13,7 @@ const sourceLabels: Record<string, { label: string; color: string }> = {
 
 export function LeadCard({ lead, basePath = "/dashboard/leads" }: { lead: Lead; basePath?: string }) {
   const source = sourceLabels[lead.source] || sourceLabels.manual
+  const lastComment = (lead as any).last_comment as string | null | undefined
 
   return (
     <Link href={`${basePath}/${lead.id}`}>
@@ -25,6 +26,10 @@ export function LeadCard({ lead, basePath = "/dashboard/leads" }: { lead: Lead; 
             {source.label}
           </Badge>
         </div>
+
+        {lastComment && (
+          <p className="text-xs text-slate-500 mb-2 line-clamp-2 leading-snug">{lastComment}</p>
+        )}
 
         <div className="space-y-1 mb-3">
           {lead.email && (

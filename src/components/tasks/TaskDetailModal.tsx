@@ -4,14 +4,15 @@ import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { PriorityBadge } from "@/components/shared/PriorityBadge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Calendar, Link as LinkIcon, MessageSquare } from "lucide-react"
+import { Calendar, Link as LinkIcon, MessageSquare, Pencil, X } from "lucide-react"
 import { formatDate } from "@/lib/utils"
-import type { Task, TaskComment } from "@/types/database"
+import type { Task, TaskComment, Profile } from "@/types/database"
 
 const statusConfig = {
   pending: { label: "Pendiente", className: "bg-yellow-100 text-yellow-700 border-yellow-200" },
@@ -25,6 +26,8 @@ interface TaskDetailModalProps {
   onClose: () => void
   taskApiPrefix?: string
   onUpdated: () => void
+  canEdit?: boolean
+  teamMembers?: Pick<Profile, "id" | "full_name">[]
 }
 
 export function TaskDetailModal({
@@ -33,6 +36,8 @@ export function TaskDetailModal({
   onClose,
   taskApiPrefix = "/api",
   onUpdated,
+  canEdit = false,
+  teamMembers = [],
 }: TaskDetailModalProps) {
   const [status, setStatus] = useState(task.status)
   const [pendingStatus, setPendingStatus] = useState<Task["status"] | null>(null)
@@ -43,6 +48,13 @@ export function TaskDetailModal({
   const [savingComment, setSavingComment] = useState(false)
   const [loadingComments, setLoadingComments] = useState(false)
 
+  // Edit mode state
+  const [isEditing, setIsEditing] = useState(false)
+  const [editTitle, setEditTitle] = useState(task.title)
+  const [editDueDate, setEditDueDate] = useState(task.due_date ?? "")
+  const [editAssignedTo, setEditAssignedTo] = useState(task.assigned_to ?? "")
+  const [savingEdit, setSavingEdit] = useState(false)
+
   const taskUrl = `${taskApiPrefix}/tasks/${task.id}`
   const commentsUrl = `${taskApiPrefix}/tasks/${task.id}/comments`
 
@@ -51,6 +63,10 @@ export function TaskDetailModal({
     setStatus(task.status)
     setPendingStatus(null)
     setStatusComment("")
+    setIsEditing(false)
+    setEditTitle(task.title)
+    setEditDueDate(task.due_date ?? "")
+    setEditAssignedTo(task.assigned_to ?? "")
     loadComments()
   }, [open, task.id])
 
@@ -139,6 +155,30 @@ export function TaskDetailModal({
     setSavingComment(false)
   }
 
+  async function handleSaveEdit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editTitle.trim()) return
+    setSavingEdit(true)
+    const res = await fetch(taskUrl, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: editTitle.trim(),
+        due_date: editDueDate || null,
+        assigned_to: editAssignedTo || null,
+      }),
+    })
+    if (res.ok) {
+      toast.success("Tarea actualizada")
+      setIsEditing(false)
+      onUpdated()
+    } else {
+      const d = await res.json().catch(() => ({}))
+      toast.error(d.error || "Error al actualizar tarea")
+    }
+    setSavingEdit(false)
+  }
+
   const displayStatus = pendingStatus ?? status
   const sc = statusConfig[displayStatus as keyof typeof statusConfig] ?? statusConfig.pending
 
@@ -150,32 +190,101 @@ export function TaskDetailModal({
         </DialogHeader>
 
         <div className="space-y-5 mt-2">
-          {/* Task meta */}
-          <div className="flex flex-wrap gap-3 text-sm text-slate-600">
-            {task.due_date && (
-              <span className="flex items-center gap-1.5">
-                <Calendar className="w-4 h-4 text-slate-400" />
-                {formatDate(task.due_date)}
-              </span>
+          {/* Task meta + edit toggle */}
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex flex-wrap gap-3 text-sm text-slate-600">
+              {task.due_date && (
+                <span className="flex items-center gap-1.5">
+                  <Calendar className="w-4 h-4 text-slate-400" />
+                  {formatDate(task.due_date)}
+                </span>
+              )}
+              {(task as any).assigned_profile && (
+                <span className="flex items-center gap-1.5">
+                  <Avatar className="w-5 h-5">
+                    <AvatarFallback className="text-[10px]">
+                      {(task as any).assigned_profile.full_name?.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  {(task as any).assigned_profile.full_name}
+                </span>
+              )}
+              {task.lead && (
+                <span className="flex items-center gap-1.5">
+                  <LinkIcon className="w-4 h-4 text-slate-400" />
+                  {task.lead.first_name} {task.lead.last_name}
+                </span>
+              )}
+              <PriorityBadge priority={task.priority} />
+            </div>
+            {canEdit && !isEditing && (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="flex items-center gap-1 text-xs text-slate-400 hover:text-indigo-600 transition-colors flex-shrink-0"
+              >
+                <Pencil className="w-3.5 h-3.5" /> Editar
+              </button>
             )}
-            {(task as any).assigned_profile && (
-              <span className="flex items-center gap-1.5">
-                <Avatar className="w-5 h-5">
-                  <AvatarFallback className="text-[10px]">
-                    {(task as any).assigned_profile.full_name?.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
-                {(task as any).assigned_profile.full_name}
-              </span>
-            )}
-            {task.lead && (
-              <span className="flex items-center gap-1.5">
-                <LinkIcon className="w-4 h-4 text-slate-400" />
-                {task.lead.first_name} {task.lead.last_name}
-              </span>
-            )}
-            <PriorityBadge priority={task.priority} />
           </div>
+
+          {/* Edit form */}
+          {isEditing && (
+            <form onSubmit={handleSaveEdit} className="space-y-3 border rounded-lg p-3 bg-slate-50">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Editar tarea</p>
+              <div className="space-y-1">
+                <label className="text-xs text-slate-600">Título</label>
+                <Input
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  required
+                  disabled={savingEdit}
+                  className="bg-white"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-600">Fecha límite</label>
+                  <Input
+                    type="date"
+                    value={editDueDate}
+                    onChange={(e) => setEditDueDate(e.target.value)}
+                    disabled={savingEdit}
+                    className="bg-white"
+                  />
+                </div>
+                {teamMembers.length > 0 && (
+                  <div className="space-y-1">
+                    <label className="text-xs text-slate-600">Responsable</label>
+                    <Select value={editAssignedTo} onValueChange={setEditAssignedTo} disabled={savingEdit}>
+                      <SelectTrigger className="bg-white">
+                        <SelectValue placeholder="Sin asignar" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Sin asignar</SelectItem>
+                        {teamMembers.map((m) => (
+                          <SelectItem key={m.id} value={m.id}>{m.full_name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button type="submit" size="sm" disabled={savingEdit || !editTitle.trim()}>
+                  {savingEdit ? "Guardando..." : "Guardar cambios"}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={savingEdit}
+                  onClick={() => setIsEditing(false)}
+                >
+                  <X className="w-3.5 h-3.5" /> Cancelar
+                </Button>
+              </div>
+            </form>
+          )}
 
           {/* Task description */}
           {task.description && (

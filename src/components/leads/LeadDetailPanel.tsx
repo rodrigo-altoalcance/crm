@@ -39,6 +39,8 @@ export function LeadDetailPanel({ lead, stages, teamMembers, profile, apiPrefix 
   const [selectedStageId, setSelectedStageId] = useState(lead.stage_id)
   const [comment, setComment] = useState("")
   const [loading, setLoading] = useState(false)
+  const [freeComment, setFreeComment] = useState("")
+  const [savingFreeComment, setSavingFreeComment] = useState(false)
   const [editingScheduled, setEditingScheduled] = useState(false)
   const [scheduledValue, setScheduledValue] = useState(() => {
     if (!lead.scheduled_at) return ""
@@ -113,6 +115,26 @@ export function LeadDetailPanel({ lead, stages, teamMembers, profile, apiPrefix 
       toast.error("Error al guardar la fecha")
     }
     setSavingScheduled(false)
+  }
+
+  async function handleSaveFreeComment(e: React.FormEvent) {
+    e.preventDefault()
+    if (!freeComment.trim()) return
+    setSavingFreeComment(true)
+    const res = await fetch(`${apiPrefix}/leads/${lead.id}/activities`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "comment", description: freeComment.trim() }),
+    })
+    if (res.ok) {
+      setFreeComment("")
+      toast.success("Comentario guardado")
+      router.refresh()
+    } else {
+      const data = await res.json().catch(() => ({}))
+      toast.error(data.error || "Error al guardar comentario")
+    }
+    setSavingFreeComment(false)
   }
 
   async function handleConfirmClose() {
@@ -260,6 +282,27 @@ export function LeadDetailPanel({ lead, stages, teamMembers, profile, apiPrefix 
                 disabled={loading || !comment.trim() || !hasChanges}
               >
                 {loading ? "Guardando..." : "Guardar"}
+              </Button>
+            </form>
+          </div>
+
+          <div className="border-t pt-4">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Agregar comentario</p>
+            <form onSubmit={handleSaveFreeComment} className="space-y-3">
+              <Textarea
+                placeholder="Escribe un comentario..."
+                value={freeComment}
+                onChange={(e) => setFreeComment(e.target.value)}
+                rows={3}
+                disabled={savingFreeComment}
+              />
+              <Button
+                type="submit"
+                size="sm"
+                variant="outline"
+                disabled={savingFreeComment || !freeComment.trim()}
+              >
+                {savingFreeComment ? "Guardando..." : "Guardar comentario"}
               </Button>
             </form>
           </div>
