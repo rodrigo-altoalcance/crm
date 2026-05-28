@@ -188,6 +188,43 @@ PATCH/DELETE /api/admin/companies/[id]/team/[userId] → editar permisos / elimi
 - **Webhook Make.com**: `POST /api/webhook/leads/[token]` (público) → mapea campos via `field_mapping` del token → asigna lead a primera etapa del pipeline
 - **Pagos**: solo super_admin puede ver/crear pagos — RLS lo bloquea para otros roles
 
+## Gestión de usuarios — ciclo de vida y BD
+
+### Cascadas al eliminar un usuario
+`profiles.id` tiene `ON DELETE CASCADE` desde `auth.users` → borrar el usuario de auth borra el perfil automáticamente.
+Las demás tablas usan `ON DELETE SET NULL` (no eliminan datos, solo anulan la referencia):
+
+| Tabla | Columna |
+|-------|---------|
+| `leads` | `assigned_to` |
+| `lead_activities` | `user_id` |
+| `tasks` | `assigned_to`, `created_by` |
+| `client_records` | `created_by` |
+| `task_comments` | `user_id` |
+| `agency_leads` | `assigned_to` |
+| `agency_lead_activities` | `user_id` |
+| `agency_tasks` | `assigned_to`, `created_by` |
+| `agency_task_comments` | `user_id` |
+
+`payments.recorded_by` y `admin_audit_log.user_id` no tienen FK — quedan como UUID huérfano, no es crítico.
+
+### Error "ya existe" al re-invitar un email
+Ocurre cuando el usuario fue eliminado de `profiles` (o `company_id` puesto en null) pero **sigue existiendo en `auth.users`**. Supabase rechaza el nuevo invite con error 422.
+
+**Solución**: eliminar directamente desde `auth.users` en el SQL Editor de Supabase:
+```sql
+DELETE FROM auth.users WHERE email = 'email@ejemplo.com';
+-- El perfil se borra en cascada automáticamente.
+```
+Después se puede re-invitar normalmente desde `/admin/companies/[id]/users`.
+
+### Verificar dónde aparece un usuario antes de eliminarlo
+```sql
+SELECT id, email, created_at FROM auth.users WHERE email = 'email@ejemplo.com';
+SELECT id, company_id, role, full_name FROM profiles
+  WHERE id = (SELECT id FROM auth.users WHERE email = 'email@ejemplo.com');
+```
+
 ## Integraciones webhook — arquitectura
 
 ### Acceso por rol

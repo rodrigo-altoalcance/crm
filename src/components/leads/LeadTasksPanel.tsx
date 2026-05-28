@@ -27,6 +27,7 @@ interface LeadTasksPanelProps {
   teamMembers: Pick<Profile, "id" | "full_name">[]
   apiPrefix?: string
   taskApiPrefix?: string
+  canEdit?: boolean
 }
 
 export function LeadTasksPanel({
@@ -35,6 +36,7 @@ export function LeadTasksPanel({
   teamMembers,
   apiPrefix = "/api",
   taskApiPrefix = "/api",
+  canEdit = false,
 }: LeadTasksPanelProps) {
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -177,6 +179,8 @@ export function LeadTasksPanel({
           onClose={() => setSelectedTask(null)}
           taskApiPrefix={taskApiPrefix}
           onUpdated={() => { setSelectedTask(null); router.refresh() }}
+          canEdit={canEdit}
+          teamMembers={teamMembers}
         />
       )}
     </>

@@ -96,11 +96,11 @@ export function LeadsKanban({ leads: initialLeads, stages, profile, basePath = "
   return (
     <>
       <DragDropContext onDragEnd={onDragEnd}>
-        <div className="flex gap-4 overflow-x-auto pb-4">
+        <div className="flex gap-4 overflow-x-auto pb-4" style={{ WebkitOverflowScrolling: "touch" }}>
           {stages.map((stage) => {
             const stageLeads = leadsByStage[stage.id] || []
             return (
-              <div key={stage.id} className="flex-shrink-0 w-72">
+              <div key={stage.id} className="flex-shrink-0 min-w-[280px] w-72">
                 <div
                   className="flex items-center justify-between px-3 py-2.5 rounded-t-xl"
                   style={{ backgroundColor: stage.color + "20" }}

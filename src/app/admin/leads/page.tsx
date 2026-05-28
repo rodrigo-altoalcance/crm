@@ -14,14 +14,27 @@ export default async function AdminLeadsPage() {
   if (!profile || profile.role !== "super_admin") redirect("/login")
 
   const admin = createAdminClient()
-  const [{ data: agencyStages }, { data: agencyLeads }, { data: teamMembers }] = await Promise.all([
+  const [{ data: agencyStages }, { data: agencyLeads }, { data: teamMembers }, { data: recentActivities }] = await Promise.all([
     admin.from("agency_stages").select("*").order("position"),
     admin
       .from("agency_leads")
       .select("*, stage:agency_stages(*), assigned_profile:profiles!assigned_to(id, full_name, avatar_url)")
       .order("created_at", { ascending: false }),
     supabase.from("profiles").select("id, full_name, avatar_url, role").eq("role", "super_admin"),
+    admin
+      .from("agency_lead_activities")
+      .select("lead_id, description, type, created_at")
+      .in("type", ["stage_changed", "lead_closed", "note_added", "comment", "task_completed"])
+      .order("created_at", { ascending: false }),
   ])
+
+  // Build map: lead_id -> last activity description
+  const lastCommentMap: Record<string, string> = {}
+  for (const act of recentActivities || []) {
+    if (act.lead_id && !(act.lead_id in lastCommentMap) && act.description) {
+      lastCommentMap[act.lead_id] = act.description
+    }
+  }
 
   // Map agency_stages to LeadStage shape
   const stages: LeadStage[] = (agencyStages || []).map((s) => ({
@@ -48,7 +61,8 @@ export default async function AdminLeadsPage() {
     updated_at: l.updated_at ?? l.created_at,
     stage: l.stage ? { ...l.stage, company_id: "agency" } : undefined,
     assigned_profile: l.assigned_profile ?? undefined,
-  }))
+    last_comment: lastCommentMap[l.id] ?? null,
+  } as Lead & { last_comment: string | null }))
 
   return (
     <div className="p-8">

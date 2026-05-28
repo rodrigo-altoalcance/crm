@@ -106,6 +106,7 @@ export default async function AdminLeadDetailPage({ params }: { params: Promise<
             teamMembers={teamMembers || []}
             apiPrefix="/api/admin/agency"
             taskApiPrefix="/api/admin/agency"
+            canEdit={true}
           />
           <LeadHistoryPanel activities={(agencyActivities || []) as any} />
         </div>
