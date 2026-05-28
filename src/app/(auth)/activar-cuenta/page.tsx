@@ -17,10 +17,10 @@ export default function ActivarCuentaPage() {
   const [confirm, setConfirm] = useState("")
   const [loading, setLoading] = useState(false)
   const router = useRouter()
-  const supabase = createClient()
 
   useEffect(() => {
     async function handleAuthCallback() {
+      const supabase = createClient()
       const hash = window.location.hash.slice(1)
       const params = new URLSearchParams(hash)
 
@@ -72,6 +72,7 @@ export default function ActivarCuentaPage() {
     }
 
     setLoading(true)
+    const supabase = createClient()
 
     const { error } = await supabase.auth.updateUser({ password })
     if (error) {
