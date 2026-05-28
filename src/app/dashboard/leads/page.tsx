@@ -17,13 +17,27 @@ export default async function LeadsPage() {
   const companyId = profile.role === "super_admin" ? impersonatedCompanyId : profile.company_id
   if (!companyId) redirect("/login")
 
-  const [{ data: stages }, { data: leads }, { data: teamMembers }] = await Promise.all([
+  const [{ data: stages }, { data: leads }, { data: teamMembers }, { data: recentActivities }] = await Promise.all([
     supabase.from("lead_stages").select("*").eq("company_id", companyId).order("position"),
     supabase.from("leads").select("*, stage:lead_stages(*), assigned_profile:profiles!assigned_to(id, full_name, avatar_url)")
       .eq("company_id", companyId)
       .order("created_at", { ascending: false }),
     supabase.from("profiles").select("id, full_name, avatar_url, role").eq("company_id", companyId),
+    supabase
+      .from("lead_activities")
+      .select("lead_id, description, type, created_at")
+      .in("type", ["stage_changed", "lead_closed", "note_added", "comment", "task_completed"])
+      .order("created_at", { ascending: false }),
   ])
+
+  const lastCommentMap: Record<string, string> = {}
+  for (const act of recentActivities || []) {
+    if (act.lead_id && !(act.lead_id in lastCommentMap) && act.description) {
+      lastCommentMap[act.lead_id] = act.description
+    }
+  }
+
+  const leadsWithComment = (leads || []).map((l) => ({ ...l, last_comment: lastCommentMap[l.id] ?? null }))
 
   return (
     <div className="p-8">
@@ -39,7 +53,7 @@ export default async function LeadsPage() {
         </Button>
       </div>
       <LeadsView
-        leads={leads || []}
+        leads={leadsWithComment}
         stages={stages || []}
         teamMembers={teamMembers || []}
         profile={profile}
