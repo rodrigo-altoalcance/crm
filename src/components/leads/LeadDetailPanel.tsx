@@ -275,7 +275,7 @@ export function LeadDetailPanel({ lead, stages, teamMembers, profile, apiPrefix 
                 size="sm"
                 disabled={loading || !comment.trim()}
               >
-                {loading ? "Guardando..." : hasChanges ? "Guardar" : "Guardar comentario"}
+                {loading ? "Guardando..." : "Guardar"}
               </Button>
             </form>
           </div>
