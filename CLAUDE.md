@@ -282,6 +282,79 @@ POST   /api/admin/companies/[companyId]/tokens/[id]    → regenera token (elimi
 - El `Dialog` de comentario obligatorio al mover un lead muestra el título: `"Mover lead: {first_name} {last_name}"`
 - Componente: `LeadsKanban.tsx`
 
+## Módulo de leads — mejoras (aplica a admin agencia y dashboard empresa)
+
+### Buscador en tiempo real
+- Input en `LeadsView.tsx` a la derecha del toggle kanban/lista
+- Filtra en memoria con `useMemo` — busca por nombre, email y teléfono
+- Al cambiar de vista kanban↔lista el filtro se mantiene
+
+### Último comentario en tarjeta del kanban
+- `LeadCard.tsx` muestra `(lead as any).last_comment` con `line-clamp-2` debajo del nombre
+- El campo se carga en el `page.tsx` de listado con una query adicional a `lead_activities` / `agency_lead_activities`:
+```typescript
+// Tipos incluidos: stage_changed, lead_closed, note_added, comment, task_completed
+const lastCommentMap: Record<string, string> = {}
+for (const act of recentActivities || []) {
+  if (act.lead_id && !(act.lead_id in lastCommentMap) && act.description) {
+    lastCommentMap[act.lead_id] = act.description
+  }
+}
+// Adjuntar al mapear leads: { ...l, last_comment: lastCommentMap[l.id] ?? null }
+```
+
+### Scroll horizontal en kanban
+- Patrón correcto: wrapper exterior con `overflow-x-auto w-full`, flex interno con `min-w-max`
+- El `DragDropContext` queda DENTRO del wrapper con scroll (requerido por `@hello-pangea/dnd`)
+```tsx
+<div className="overflow-x-auto w-full pb-4" style={{ WebkitOverflowScrolling: "touch" }}>
+  <DragDropContext onDragEnd={onDragEnd}>
+    <div className="flex gap-4 min-w-max">
+      {/* columnas */}
+    </div>
+  </DragDropContext>
+</div>
+```
+
+### Filtro del buscador en kanban
+- `LeadsKanban` tiene `useState(initialLeads)` para updates optimistas del drag & drop
+- Sin `useEffect`, el kanban ignora cambios del prop (buscador no filtra desde kanban)
+- Solución: `useEffect(() => { setLeads(initialLeads) }, [initialLeads])`
+
+### Comentario sin cambiar etapa en LeadDetailPanel
+- El campo de comentario existente en "Cambiar etapa" permite guardar sin requerir cambio
+- Si `hasChanges` → PATCH a `stage` con comentario; si no → POST a `activities` con `type: "comment"`
+- El botón siempre dice "Guardar", habilitado con solo texto (no requiere cambio de etapa)
+
+### Editar tarea desde el detalle del lead
+- `TaskDetailModal` acepta `canEdit?: boolean` y `teamMembers?: Profile[]`
+- Cuando `canEdit=true` aparece botón "Editar" que activa formulario inline (título, fecha límite, responsable)
+- PATCH al endpoint de tasks, sin generar entrada en el historial del lead
+- `LeadTasksPanel` acepta `canEdit?: boolean` y lo propaga al modal
+- En admin agencia (`/admin/leads/[id]`): `canEdit={true}` siempre
+- En dashboard empresa (`/dashboard/leads/[id]`): `canEdit={role === "super_admin" || role === "company_admin" || permissions?.can_edit_leads}`
+
+## Patrón crítico — createClient() en componentes "use client"
+
+Next.js SSR ejecuta componentes `"use client"` en el servidor durante el build. Si `createClient()` (browser Supabase) se llama al nivel del componente, falla en Vercel porque las env vars no están disponibles en build time.
+
+```typescript
+// ❌ ROMPE el build en Vercel
+export function LoginForm() {
+  const supabase = createClient() // se ejecuta en SSR → crash
+  ...
+}
+
+// ✅ Correcto: solo dentro de handlers/effects (browser únicamente)
+export function LoginForm() {
+  async function handleSubmit() {
+    const supabase = createClient() // solo corre en el browser
+    ...
+  }
+}
+```
+Archivos afectados y corregidos: `LoginForm.tsx`, `AdminSidebar.tsx`, `DashboardSidebar.tsx`, `activar-cuenta/page.tsx`
+
 ## Convenciones UI
 - Sidebar oscuro (`#0F172A`), accent `#6366F1` (indigo-500), fondo `#F8FAFC`
 - Toasts: `toast.success/error()` de sonner
