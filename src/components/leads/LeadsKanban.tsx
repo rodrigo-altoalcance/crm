@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
@@ -28,6 +28,10 @@ interface PendingMove {
 export function LeadsKanban({ leads: initialLeads, stages, profile, basePath = "/dashboard/leads", apiPrefix = "/api" }: LeadsKanbanProps) {
   const [leads, setLeads] = useState(initialLeads)
   const [pendingMove, setPendingMove] = useState<PendingMove | null>(null)
+
+  useEffect(() => {
+    setLeads(initialLeads)
+  }, [initialLeads])
   const [moveComment, setMoveComment] = useState("")
   const [moving, setMoving] = useState(false)
   const router = useRouter()
@@ -95,8 +99,9 @@ export function LeadsKanban({ leads: initialLeads, stages, profile, basePath = "
 
   return (
     <>
+      <div className="overflow-x-auto w-full pb-4" style={{ WebkitOverflowScrolling: "touch" }}>
       <DragDropContext onDragEnd={onDragEnd}>
-        <div className="flex gap-4 overflow-x-auto pb-4" style={{ WebkitOverflowScrolling: "touch" }}>
+        <div className="flex gap-4 min-w-max">
           {stages.map((stage) => {
             const stageLeads = leadsByStage[stage.id] || []
             return (
@@ -149,6 +154,7 @@ export function LeadsKanban({ leads: initialLeads, stages, profile, basePath = "
           })}
         </div>
       </DragDropContext>
+      </div>
 
       <Dialog open={!!pendingMove} onOpenChange={(v) => { if (!v) cancelMove() }}>
         <DialogContent className="max-w-md">
