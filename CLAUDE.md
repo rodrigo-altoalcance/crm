@@ -28,9 +28,12 @@ src/
 │   │   ├── companies/          # CRUD usuario empresa + pagos + usuarios + pipeline + equipo
 │   │   │   └── [id]/leads/     # Pipeline (Kanban+tabla) de la empresa — acceso directo sin impersonar
 │   │   │   └── [id]/team/      # Equipo de la empresa — invitar colaboradores desde admin
+│   │   │   └── [id]/integrations/ # Webhooks + campos personalizados empresa
 │   │   ├── leads/              # Leads globales de la agencia
 │   │   ├── clients/            # Leads cerrados + config de pagos
-│   │   └── settings/emails/    # Templates: bienvenida + invitación + cobranza (Resend)
+│   │   └── settings/
+│   │       ├── emails/         # Templates: bienvenida + invitación + cobranza (Resend)
+│   │       └── integrations/   # Webhooks agencia + campos personalizados agencia
 │   ├── dashboard/              # Portal empresa
 │   │   ├── leads/              # Kanban + tabla + detalle
 │   │   ├── clients/            # Clientes convertidos + registros
@@ -39,24 +42,34 @@ src/
 │   │   └── settings/           # Etapas, Org, Integraciones, Campos
 │   └── api/
 │       ├── admin/              # companies, leads, clients, impersonate, email-templates
-│       │   ├── companies/[companyId]/tokens/  # CRUD tokens webhook (super_admin, sin impersonar)
-│       │   ├── companies/[companyId]/leads/   # CRUD leads empresa (admin directo, sin impersonar)
-│       │   │   └── [leadId]/{stage,activities,tasks}/
-│       │   └── companies/[companyId]/team/    # Invitar/gestionar equipo empresa (admin directo)
-│       │       └── [userId]/                  # PATCH permisos, DELETE miembro
-│       ├── leads/[id]/         # stage, activities, tasks
-│       ├── webhook/leads/[token]/  # Público — Make.com
+│       │   ├── companies/[companyId]/tokens/           # CRUD tokens webhook
+│       │   ├── companies/[companyId]/leads/            # CRUD leads empresa (admin directo)
+│       │   │   └── [leadId]/{stage,activities,tasks,custom-field-values}/
+│       │   ├── companies/[companyId]/team/             # Invitar/gestionar equipo empresa
+│       │   ├── companies/[companyId]/custom-fields/    # CRUD campos personalizados empresa
+│       │   └── companies/[companyId]/column-preferences/ # Preferencias columnas (super_admin)
+│       │   └── agency/
+│       │       ├── tokens/            # CRUD tokens webhook agencia
+│       │       ├── leads/[id]/{stage,activities,tasks,custom-field-values}/
+│       │       ├── custom-fields/     # CRUD campos personalizados agencia
+│       │       └── column-preferences/
+│       ├── leads/[id]/         # stage, activities, tasks, custom-field-values
+│       ├── settings/
+│       │   ├── tokens/         # CRUD tokens webhook empresa
+│       │   ├── custom-fields/  # CRUD campos personalizados empresa
+│       │   └── column-preferences/  # Preferencias columnas por usuario
+│       ├── webhook/leads/[token]/   # Público — Make.com (empresa)
+│       ├── webhook/agency/[token]/  # Público — Make.com (agencia)
 │       ├── team/, tasks/, stages/
-│       ├── admin/test-email/   # POST — prueba de envío (solo super_admin)
-       └── settings/           # tokens, field-definitions, organization
+│       └── admin/test-email/   # POST — prueba de envío (solo super_admin)
 ├── components/
-│   ├── ui/                     # shadcn manual: button, card, dialog, etc.
+│   ├── ui/                     # shadcn manual: button, card, dialog, dropdown-menu, etc.
 │   ├── admin/                  # CompanyForm, ClientPaymentPanel, AdminSidebar, InviteUserForm, etc.
-│   ├── leads/                  # LeadsKanban, LeadDetailPanel, CloseLeadConfirmDialog
+│   ├── leads/                  # LeadsKanban, LeadDetailPanel, LeadsTable, LeadsView, CloseLeadConfirmDialog
 │   ├── dashboard/              # DashboardSidebar, ImpersonationBanner
 │   ├── clients/                # ClientsTable, ClientRecordsPanel
 │   ├── tasks/, team/           # TeamView acepta apiPrefix + permissionsBasePath
-│   ├── settings/               # WebhookConfig, FieldMappingEditor, StagesEditor, OrganizationForm, FieldsEditor
+│   ├── settings/               # WebhookConfig, FieldMappingEditor, CustomLeadFieldsEditor, StagesEditor, OrganizationForm, FieldsEditor
 │   └── shared/                 # EmptyState, ConfirmDialog, StatusBadge, PriorityBadge
 └── lib/
     ├── supabase/{client,server,admin,middleware}.ts
@@ -64,7 +77,7 @@ src/
     ├── email/mailer.ts         # sendEmail({ to, subject, html }) — usa RESEND_API_KEY
     ├── email/welcome.ts        # sendWelcomeEmail({ to, companyName, verificationLink }) — usa template de BD
     ├── email/invitation.ts     # sendInvitationEmail({ to, inviteeName, companyName, inviteLink }) — usa template BD
-    └── utils.ts                # cn(), formatCLP(), formatDate(), formatScheduledAt() — DD/MM/YYYY HH:mm en America/Santiago
+    └── utils.ts                # cn(), formatCLP(), formatDate(), formatScheduledAt(), toSnakeCase()
 ```
 
 ## Patrones críticos
@@ -100,22 +113,25 @@ if (ids.length > 0) await supabase.from("leads").select("*").in("stage_id", ids)
 
 ## DB — Tablas principales
 ```
-companies               id, name, monthly_fee, currency, payment_day, max_users, status, org_*
-profiles                id(=auth.uid), company_id, role, full_name, permissions(jsonb)
-leads                   id, company_id, stage_id, first_name, last_name, email, phone, source, custom_fields(jsonb), scheduled_at(timestamptz)
-lead_stages             id, company_id, name, color, position, is_final, is_lost
-lead_activities         id, lead_id, user_id, type, description, metadata(jsonb)
-tasks                   id, company_id, lead_id, title, priority, status, assigned_to, due_date
-webhook_tokens          id, company_id, token(uuid), name, field_mapping(jsonb)
-lead_field_definitions  id, company_id, name, label, type, options(jsonb), position
-client_records          id, lead_id, company_id, title, description, type, record_date
-payments                id, company_id, amount, currency, paid_at (super_admin only)
-email_templates         id, name, subject, body_html, type('billing'|'welcome'|'invitation'), is_default
-crm_settings            key, value  (agency_name, agency_email)  — resend_api_key ya NO se guarda aquí, va en env var
-agency_leads            id, stage_id, first_name, last_name, email, phone, source, message, custom_fields(jsonb), assigned_to, scheduled_at(timestamptz), created_at, updated_at
-agency_stages           id, name, color, position, is_final, is_lost
-agency_lead_activities  id, lead_id, user_id, type, description, metadata(jsonb)
-agency_tasks            id, lead_id, title, priority, status, assigned_to, due_date
+companies                    id, name, monthly_fee, currency, payment_day, max_users, status, org_*
+profiles                     id(=auth.uid), company_id, role, full_name, permissions(jsonb)
+leads                        id, company_id, stage_id, first_name, last_name, email, phone, source, custom_fields(jsonb), scheduled_at(timestamptz)
+lead_stages                  id, company_id, name, color, position, is_final, is_lost
+lead_activities              id, lead_id, user_id, type, description, metadata(jsonb)
+tasks                        id, company_id, lead_id, title, priority, status, assigned_to, due_date
+webhook_tokens               id, company_id, token(uuid), name, field_mapping(jsonb)
+lead_field_definitions       id, company_id, name, label, type, options(jsonb), position
+client_records               id, lead_id, company_id, title, description, type, record_date
+payments                     id, company_id, amount, currency, paid_at (super_admin only)
+email_templates              id, name, subject, body_html, type('billing'|'welcome'|'invitation'), is_default
+crm_settings                 key, value  (agency_name, agency_email)
+agency_leads                 id, stage_id, first_name, last_name, email, phone, source, message, custom_fields(jsonb), assigned_to, scheduled_at(timestamptz), created_at, updated_at
+agency_stages                id, name, color, position, is_final, is_lost
+agency_lead_activities       id, lead_id, user_id, type, description, metadata(jsonb)
+agency_tasks                 id, lead_id, title, priority, status, assigned_to, due_date
+custom_lead_fields           id, context('agency'|'company'), company_id(null si agencia), nombre, tipo('texto'|'numero'|'fecha'), obligatorio, orden, created_at
+custom_lead_field_values     id, field_id(FK→custom_lead_fields), lead_id(UUID sin FK), valor, created_at
+user_lead_column_preferences id, user_id, context, company_id, column_key, visible, created_at
 ```
 
 ## Permisos sellers (profiles.permissions jsonb)
@@ -176,6 +192,7 @@ GET/PATCH/DELETE  /api/admin/companies/[id]/leads/[leadId]
 PATCH     /api/admin/companies/[id]/leads/[leadId]/stage
 GET/POST  /api/admin/companies/[id]/leads/[leadId]/activities
 GET/POST  /api/admin/companies/[id]/leads/[leadId]/tasks
+PATCH     /api/admin/companies/[id]/leads/[leadId]/custom-field-values
 ```
 
 ### Módulo Equipo de empresa desde admin (`/admin/companies/[id]/team`)
@@ -235,11 +252,12 @@ SELECT id, company_id, role, full_name FROM profiles
 | Rol | Ruta | API usada |
 |-----|------|-----------|
 | `company_admin` | `/dashboard/settings/integrations` | `/api/settings/tokens` (lee cookie `impersonated_company`) |
-| `super_admin` | `/admin/companies/[id]/integrations` | `/api/admin/companies/[companyId]/tokens` (sin cookie, `createAdminClient`) |
+| `super_admin` (agencia) | `/admin/settings/integrations` | `/api/admin/agency/tokens` |
+| `super_admin` (empresa) | `/admin/companies/[id]/integrations` | `/api/admin/companies/[companyId]/tokens` (sin cookie, `createAdminClient`) |
 
 ### Componentes reutilizables
-- `WebhookConfig` acepta prop `apiPrefix` (default `/api/settings`) — úsalo para apuntar a distinto backend
-- `FieldMappingEditor` acepta prop `apiPrefix` igual — propagar siempre desde `WebhookConfig`
+- `WebhookConfig` acepta prop `apiPrefix` (default `/api/settings`) y `webhookPath` — úsalo para apuntar a distinto backend
+- `CustomLeadFieldsEditor` acepta prop `apiPrefix` — construye el subpath `/custom-fields` automáticamente
 
 ### Campos soportados en el webhook
 Campos estándar (van a columnas del lead): `first_name/nombre`, `last_name/apellido`, `email/correo`, `phone/telefono/fono`, `message/mensaje`, `source/origen`
@@ -267,22 +285,100 @@ DELETE /api/admin/companies/[companyId]/tokens/[id]    → elimina token
 POST   /api/admin/companies/[companyId]/tokens/[id]    → regenera token (elimina y recrea)
 ```
 
+## Campos personalizados de lead — arquitectura
+
+### Tablas
+- `custom_lead_fields` — define campos por contexto (`agency` | `company`). `company_id` es NULL si context=agency.
+- `custom_lead_field_values` — valores de esos campos por lead. `lead_id` es UUID sin FK explícita (puede ser `leads.id` o `agency_leads.id`).
+- `user_lead_column_preferences` — preferencia de visibilidad de columnas por usuario, contexto y empresa.
+
+### Acceso por contexto
+| Contexto | API campos | API column-prefs | API valores |
+|----------|-----------|-----------------|-------------|
+| Dashboard empresa | `/api/settings/custom-fields` | `/api/settings/column-preferences` | `PATCH /api/leads/[id]/custom-field-values` |
+| Admin agencia | `/api/admin/agency/custom-fields` | `/api/admin/agency/column-preferences` | `PATCH /api/admin/agency/leads/[id]/custom-field-values` |
+| Admin → empresa | `/api/admin/companies/[id]/custom-fields` | `/api/admin/companies/[id]/column-preferences` | `PATCH /api/admin/companies/[id]/leads/[leadId]/custom-field-values` |
+
+### Componente `CustomLeadFieldsEditor`
+Props: `initialFields: CustomLeadField[]`, `apiPrefix: string`
+- Llama a `${apiPrefix}/custom-fields` para CRUD de campos
+- Llama a `${apiPrefix}/custom-fields/[id]` para PATCH (reordenar) y DELETE
+- Muestra campos fijos como referencia no editable
+- Genera JSON para Make con `toSnakeCase(field.nombre)` como clave
+- Botón "Copiar JSON" copia al portapapeles con toast "¡Copiado!"
+
+### Componente `LeadsView` — columnas dinámicas
+Props nuevas: `customFields`, `initialColumnPrefs`, `fieldValuesMap`, `columnPrefsApiPrefix`
+- Botón "Columnas" (solo en vista tabla, solo si hay campos personalizados) abre `DropdownMenuCheckboxItem` por cada campo
+- Toggle llama `PATCH ${columnPrefsApiPrefix}/column-preferences` con `{ column_key: field.id, visible }`
+- Default: todos los campos personalizados **ocultos** hasta que el usuario los active
+
+### Componente `LeadDetailPanel` — sección "Información adicional"
+Props nuevas: `customFields?: CustomLeadField[]`, `initialFieldValues?: Record<string, string>`
+- Muestra TODOS los campos del contexto (independiente de preferencias de columna)
+- Edición inline: un campo a la vez, input del tipo correspondiente (text/number/date)
+- Al guardar: `PATCH ${apiPrefix}/leads/${lead.id}/custom-field-values` con `{ field_id, valor }`
+- Actualización optimista del estado local, sin `router.refresh()`
+- Si no hay campos personalizados, la sección no se renderiza
+
+### Webhook + campos personalizados
+Al recibir POST en el webhook, después de crear el lead:
+1. Se consultan los `custom_lead_fields` del contexto/empresa
+2. Para cada campo, se calcula `toSnakeCase(field.nombre)` → se busca esa clave en `rawBody`
+3. Si existe, se inserta en `custom_lead_field_values`
+4. Los campos fijos se siguen guardando exactamente igual (sin tocar esa lógica)
+
+### Utility `toSnakeCase(str)`
+En `src/lib/utils.ts` — convierte nombre de campo a clave snake_case sin tildes ni caracteres especiales:
+```typescript
+toSnakeCase("Empresa del cliente") // → "empresa_del_cliente"
+toSnakeCase("Teléfono celular")    // → "telefono_celular"
+```
+
+### Cómo cargar datos en page.tsx de listado
+```typescript
+// Cargar campos + preferencias + valores en paralelo
+const [{ data: customFields }, { data: columnPrefsRows }] = await Promise.all([
+  supabase.from("custom_lead_fields").select("*").eq("context", "company").eq("company_id", companyId).order("orden"),
+  supabase.from("user_lead_column_preferences").select("column_key, visible").eq("user_id", profile.id).eq("context", "company").eq("company_id", companyId),
+])
+
+// Construir mapa de preferencias
+const initialColumnPrefs: Record<string, boolean> = {}
+for (const row of columnPrefsRows || []) initialColumnPrefs[row.column_key] = row.visible
+
+// Cargar valores para todos los leads visibles (solo si hay campos definidos)
+const leadIds = (leads || []).map(l => l.id)
+let fieldValuesMap: Record<string, Record<string, string>> = {}
+if (leadIds.length > 0 && (customFields || []).length > 0) {
+  const { data: allValues } = await supabase
+    .from("custom_lead_field_values").select("lead_id, field_id, valor").in("lead_id", leadIds)
+  for (const v of allValues || []) {
+    if (!fieldValuesMap[v.lead_id]) fieldValuesMap[v.lead_id] = {}
+    fieldValuesMap[v.lead_id][v.field_id] = v.valor ?? ""
+  }
+}
+```
+
+### Cómo cargar datos en page.tsx de detalle
+```typescript
+const [{ data: customFields }, { data: fieldValueRows }] = await Promise.all([
+  supabase.from("custom_lead_fields").select("*").eq("context", "company").eq("company_id", companyId).order("orden"),
+  supabase.from("custom_lead_field_values").select("field_id, valor").eq("lead_id", id),
+])
+const initialFieldValues: Record<string, string> = {}
+for (const v of fieldValueRows || []) initialFieldValues[v.field_id] = v.valor ?? ""
+```
+
 ## Campo scheduled_at — Fecha de agenda inicial
 
-<<<<<<< HEAD
-- Columna `leads.scheduled_at TIMESTAMPTZ NULL` — llenado manualmente, nunca automático
-=======
 - Columnas: `leads.scheduled_at TIMESTAMPTZ NULL` y `agency_leads.scheduled_at TIMESTAMPTZ NULL` — migración `007`
 - Llenado manualmente, nunca automático
->>>>>>> dev
 - Aparece en: formulario de creación (`NewLeadForm`), detalle del lead (edición inline con ícono lápiz → input → ✓/✗), columna en tabla (`LeadsTable`), tarjeta kanban (`LeadCard` — solo si tiene valor, en indigo)
 - Formato de visualización siempre `DD/MM/YYYY HH:mm` en zona `America/Santiago` via `formatScheduledAt()` de `src/lib/utils.ts`
 - Para convertir datetime-local a ISO al guardar: `new Date(value).toISOString()`
 - El PATCH de edición inline llama a `${apiPrefix}/leads/${lead.id}` con `{ scheduled_at: isoString | null }`
-<<<<<<< HEAD
-=======
 - Contexto admin agencia: API route `PATCH /api/admin/agency/leads/[id]` — usa `createAdminClient()`, bypasea RLS
->>>>>>> dev
 
 ## Módulo "Mis tareas" (`/dashboard/tasks`)
 
@@ -347,8 +443,6 @@ for (const act of recentActivities || []) {
 - En admin agencia (`/admin/leads/[id]`): `canEdit={true}` siempre
 - En dashboard empresa (`/dashboard/leads/[id]`): `canEdit={role === "super_admin" || role === "company_admin" || permissions?.can_edit_leads}`
 
-<<<<<<< HEAD
-=======
 ## Patrón crítico — mapping manual de Lead desde agencyLead (admin agencia)
 
 En `/admin/leads/[id]/page.tsx`, el objeto `Lead` se construye manualmente desde `agencyLead` (que viene de `agency_leads`). El tipo `AgencyLead` no siempre tiene todos los campos del tipo `Lead` — si el campo existe en la BD pero no en `AgencyLead`, usar `(agencyLead as any).campo`.
@@ -366,26 +460,22 @@ Si se agrega una columna nueva a `agency_leads`, hay que actualizar también la 
 
 ## Patrón crítico — actualización optimista de campos editables inline
 
-`router.refresh()` es asíncrono — cuando el componente vuelve al modo display después de guardar, el prop `lead` todavía tiene el valor viejo. Usar estado local para actualizar la UI inmediatamente, igual que `setCurrentStageId` en el cambio de etapa.
+`router.refresh()` es asíncrono — cuando el componente vuelve al modo display después de guardar, el prop `lead` todavía tiene el valor viejo. Usar estado local para actualizar la UI inmediatamente.
 
 ```typescript
-// ✅ Patrón correcto: estado local + router.refresh()
-const [displayScheduledAt, setDisplayScheduledAt] = useState(lead.scheduled_at)
+// ✅ Patrón correcto: estado local + router.refresh() opcional
+const [displayValue, setDisplayValue] = useState(initialValue)
 
-async function saveScheduledAt() {
+async function saveField() {
   const res = await fetch(...)
   if (res.ok) {
-    setDisplayScheduledAt(value)   // actualiza inmediatamente
-    setEditingScheduled(false)
-    router.refresh()               // sincroniza con el servidor eventualmente
+    setDisplayValue(newValue)   // actualiza inmediatamente
+    setEditing(false)
+    router.refresh()             // sincroniza con el servidor eventualmente
   }
 }
-
-// En el display, usar el estado local (no el prop):
-{displayScheduledAt ? formatScheduledAt(displayScheduledAt) : "Sin fecha"}
 ```
 
->>>>>>> dev
 ## Patrón crítico — createClient() en componentes "use client"
 
 Next.js SSR ejecuta componentes `"use client"` en el servidor durante el build. Si `createClient()` (browser Supabase) se llama al nivel del componente, falla en Vercel porque las env vars no están disponibles en build time.
@@ -394,18 +484,29 @@ Next.js SSR ejecuta componentes `"use client"` en el servidor durante el build. 
 // ❌ ROMPE el build en Vercel
 export function LoginForm() {
   const supabase = createClient() // se ejecuta en SSR → crash
-  ...
 }
 
 // ✅ Correcto: solo dentro de handlers/effects (browser únicamente)
 export function LoginForm() {
   async function handleSubmit() {
     const supabase = createClient() // solo corre en el browser
-    ...
   }
 }
 ```
 Archivos afectados y corregidos: `LoginForm.tsx`, `AdminSidebar.tsx`, `DashboardSidebar.tsx`, `activar-cuenta/page.tsx`
+
+## Migraciones aplicadas
+| # | Descripción |
+|---|-------------|
+| 001 | Schema inicial |
+| 002 | Tablas agencia |
+| 003 | Template email bienvenida |
+| 004 | agency_leads completo |
+| 005 | Template email invitación |
+| 006 | task_comments |
+| 007 | scheduled_at en leads y agency_leads |
+| 008 | custom_lead_fields + custom_lead_field_values |
+| 009 | user_lead_column_preferences |
 
 ## Convenciones UI
 - Sidebar oscuro (`#0F172A`), accent `#6366F1` (indigo-500), fondo `#F8FAFC`
