@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/auth/getProfile"
 import { redirect } from "next/navigation"
 import { WebhookConfig } from "@/components/settings/WebhookConfig"
+import { CustomLeadFieldsEditor } from "@/components/settings/CustomLeadFieldsEditor"
 import type { WebhookToken } from "@/types/database"
 
 export default async function AgencyIntegrationsPage() {
@@ -16,7 +17,13 @@ export default async function AgencyIntegrationsPage() {
     .select("*")
     .order("created_at")
 
-  // Map agency tokens to WebhookToken shape (company_id not used by WebhookConfig)
+  const { data: customFields } = await admin
+    .from("custom_lead_fields")
+    .select("*")
+    .eq("context", "agency")
+    .is("company_id", null)
+    .order("orden")
+
   const tokensMapped: WebhookToken[] = (tokens || []).map((t) => ({
     ...t,
     company_id: "agency",
@@ -40,11 +47,18 @@ export default async function AgencyIntegrationsPage() {
         </p>
       </div>
 
-      <WebhookConfig
-        tokens={tokensMapped}
-        webhookBaseUrl={webhookBaseUrl}
+      <div className="mb-8">
+        <WebhookConfig
+          tokens={tokensMapped}
+          webhookBaseUrl={webhookBaseUrl}
+          apiPrefix="/api/admin/agency"
+          webhookPath="/api/webhook/agency/"
+        />
+      </div>
+
+      <CustomLeadFieldsEditor
+        initialFields={customFields || []}
         apiPrefix="/api/admin/agency"
-        webhookPath="/api/webhook/agency/"
       />
     </div>
   )

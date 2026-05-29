@@ -33,6 +33,16 @@ export function formatDateTime(date: string | Date): string {
   }).format(d)
 }
 
+export function toSnakeCase(str: string): string {
+  return str
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, "")
+    .trim()
+    .replace(/\s+/g, "_")
+}
+
 export function formatScheduledAt(date: string | Date): string {
   const d = typeof date === "string" ? new Date(date) : date
   const parts = new Intl.DateTimeFormat("es-CL", {

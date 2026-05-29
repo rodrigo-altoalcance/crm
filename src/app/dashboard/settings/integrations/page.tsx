@@ -3,6 +3,7 @@ import { getProfile } from "@/lib/auth/getProfile"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { WebhookConfig } from "@/components/settings/WebhookConfig"
+import { CustomLeadFieldsEditor } from "@/components/settings/CustomLeadFieldsEditor"
 
 export default async function IntegrationsSettingsPage() {
   const supabase = await createClient()
@@ -24,6 +25,13 @@ export default async function IntegrationsSettingsPage() {
     .eq("company_id", companyId)
     .order("created_at")
 
+  const { data: customFields } = await supabase
+    .from("custom_lead_fields")
+    .select("*")
+    .eq("context", "company")
+    .eq("company_id", companyId)
+    .order("orden")
+
   const webhookBaseUrl = process.env.NEXT_PUBLIC_APP_URL || ""
 
   return (
@@ -34,7 +42,15 @@ export default async function IntegrationsSettingsPage() {
           Configura webhooks para recibir leads automáticamente desde Meta, Calendly u otros servicios.
         </p>
       </div>
-      <WebhookConfig tokens={tokens || []} webhookBaseUrl={webhookBaseUrl} />
+
+      <div className="mb-8">
+        <WebhookConfig tokens={tokens || []} webhookBaseUrl={webhookBaseUrl} />
+      </div>
+
+      <CustomLeadFieldsEditor
+        initialFields={customFields || []}
+        apiPrefix="/api/settings"
+      />
     </div>
   )
 }

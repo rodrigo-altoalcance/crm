@@ -100,18 +100,22 @@ if (ids.length > 0) await supabase.from("leads").select("*").in("stage_id", ids)
 
 ## DB — Tablas principales
 ```
-companies          id, name, monthly_fee, currency, payment_day, max_users, status, org_*
-profiles           id(=auth.uid), company_id, role, full_name, permissions(jsonb)
-leads              id, company_id, stage_id, first_name, last_name, email, phone, source, custom_fields(jsonb), scheduled_at(timestamptz)
-lead_stages        id, company_id, name, color, position, is_final, is_lost
-lead_activities    id, lead_id, user_id, type, description, metadata(jsonb)
-tasks              id, company_id, lead_id, title, priority, status, assigned_to, due_date
-webhook_tokens     id, company_id, token(uuid), name, field_mapping(jsonb)
+companies               id, name, monthly_fee, currency, payment_day, max_users, status, org_*
+profiles                id(=auth.uid), company_id, role, full_name, permissions(jsonb)
+leads                   id, company_id, stage_id, first_name, last_name, email, phone, source, custom_fields(jsonb), scheduled_at(timestamptz)
+lead_stages             id, company_id, name, color, position, is_final, is_lost
+lead_activities         id, lead_id, user_id, type, description, metadata(jsonb)
+tasks                   id, company_id, lead_id, title, priority, status, assigned_to, due_date
+webhook_tokens          id, company_id, token(uuid), name, field_mapping(jsonb)
 lead_field_definitions  id, company_id, name, label, type, options(jsonb), position
-client_records     id, lead_id, company_id, title, description, type, record_date
-payments           id, company_id, amount, currency, paid_at (super_admin only)
-email_templates    id, name, subject, body_html, type('billing'|'welcome'|'invitation'), is_default
-crm_settings       key, value  (agency_name, agency_email)  — resend_api_key ya NO se guarda aquí, va en env var
+client_records          id, lead_id, company_id, title, description, type, record_date
+payments                id, company_id, amount, currency, paid_at (super_admin only)
+email_templates         id, name, subject, body_html, type('billing'|'welcome'|'invitation'), is_default
+crm_settings            key, value  (agency_name, agency_email)  — resend_api_key ya NO se guarda aquí, va en env var
+agency_leads            id, stage_id, first_name, last_name, email, phone, source, message, custom_fields(jsonb), assigned_to, scheduled_at(timestamptz), created_at, updated_at
+agency_stages           id, name, color, position, is_final, is_lost
+agency_lead_activities  id, lead_id, user_id, type, description, metadata(jsonb)
+agency_tasks            id, lead_id, title, priority, status, assigned_to, due_date
 ```
 
 ## Permisos sellers (profiles.permissions jsonb)
@@ -265,11 +269,20 @@ POST   /api/admin/companies/[companyId]/tokens/[id]    → regenera token (elimi
 
 ## Campo scheduled_at — Fecha de agenda inicial
 
+<<<<<<< HEAD
 - Columna `leads.scheduled_at TIMESTAMPTZ NULL` — llenado manualmente, nunca automático
+=======
+- Columnas: `leads.scheduled_at TIMESTAMPTZ NULL` y `agency_leads.scheduled_at TIMESTAMPTZ NULL` — migración `007`
+- Llenado manualmente, nunca automático
+>>>>>>> dev
 - Aparece en: formulario de creación (`NewLeadForm`), detalle del lead (edición inline con ícono lápiz → input → ✓/✗), columna en tabla (`LeadsTable`), tarjeta kanban (`LeadCard` — solo si tiene valor, en indigo)
 - Formato de visualización siempre `DD/MM/YYYY HH:mm` en zona `America/Santiago` via `formatScheduledAt()` de `src/lib/utils.ts`
 - Para convertir datetime-local a ISO al guardar: `new Date(value).toISOString()`
 - El PATCH de edición inline llama a `${apiPrefix}/leads/${lead.id}` con `{ scheduled_at: isoString | null }`
+<<<<<<< HEAD
+=======
+- Contexto admin agencia: API route `PATCH /api/admin/agency/leads/[id]` — usa `createAdminClient()`, bypasea RLS
+>>>>>>> dev
 
 ## Módulo "Mis tareas" (`/dashboard/tasks`)
 
@@ -334,6 +347,45 @@ for (const act of recentActivities || []) {
 - En admin agencia (`/admin/leads/[id]`): `canEdit={true}` siempre
 - En dashboard empresa (`/dashboard/leads/[id]`): `canEdit={role === "super_admin" || role === "company_admin" || permissions?.can_edit_leads}`
 
+<<<<<<< HEAD
+=======
+## Patrón crítico — mapping manual de Lead desde agencyLead (admin agencia)
+
+En `/admin/leads/[id]/page.tsx`, el objeto `Lead` se construye manualmente desde `agencyLead` (que viene de `agency_leads`). El tipo `AgencyLead` no siempre tiene todos los campos del tipo `Lead` — si el campo existe en la BD pero no en `AgencyLead`, usar `(agencyLead as any).campo`.
+
+```typescript
+// ✅ Incluir TODOS los campos del tipo Lead al mapear desde agencyLead
+const lead: Lead = {
+  ...
+  scheduled_at: (agencyLead as any).scheduled_at ?? null,  // campo en BD pero no en AgencyLead
+  ...
+}
+```
+
+Si se agrega una columna nueva a `agency_leads`, hay que actualizar también la interfaz `AgencyLead` en `src/types/database.ts`.
+
+## Patrón crítico — actualización optimista de campos editables inline
+
+`router.refresh()` es asíncrono — cuando el componente vuelve al modo display después de guardar, el prop `lead` todavía tiene el valor viejo. Usar estado local para actualizar la UI inmediatamente, igual que `setCurrentStageId` en el cambio de etapa.
+
+```typescript
+// ✅ Patrón correcto: estado local + router.refresh()
+const [displayScheduledAt, setDisplayScheduledAt] = useState(lead.scheduled_at)
+
+async function saveScheduledAt() {
+  const res = await fetch(...)
+  if (res.ok) {
+    setDisplayScheduledAt(value)   // actualiza inmediatamente
+    setEditingScheduled(false)
+    router.refresh()               // sincroniza con el servidor eventualmente
+  }
+}
+
+// En el display, usar el estado local (no el prop):
+{displayScheduledAt ? formatScheduledAt(displayScheduledAt) : "Sin fecha"}
+```
+
+>>>>>>> dev
 ## Patrón crítico — createClient() en componentes "use client"
 
 Next.js SSR ejecuta componentes `"use client"` en el servidor durante el build. Si `createClient()` (browser Supabase) se llama al nivel del componente, falla en Vercel porque las env vars no están disponibles en build time.

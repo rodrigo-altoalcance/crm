@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import { WebhookConfig } from "@/components/settings/WebhookConfig"
+import { CustomLeadFieldsEditor } from "@/components/settings/CustomLeadFieldsEditor"
 
 export default async function AdminCompanyIntegrationsPage({
   params,
@@ -32,6 +33,13 @@ export default async function AdminCompanyIntegrationsPage({
     .eq("company_id", id)
     .order("created_at")
 
+  const { data: customFields } = await admin
+    .from("custom_lead_fields")
+    .select("*")
+    .eq("context", "company")
+    .eq("company_id", id)
+    .order("orden")
+
   const webhookBaseUrl = process.env.NEXT_PUBLIC_APP_URL || ""
 
   return (
@@ -54,9 +62,16 @@ export default async function AdminCompanyIntegrationsPage({
         </p>
       </div>
 
-      <WebhookConfig
-        tokens={tokens || []}
-        webhookBaseUrl={webhookBaseUrl}
+      <div className="mb-8">
+        <WebhookConfig
+          tokens={tokens || []}
+          webhookBaseUrl={webhookBaseUrl}
+          apiPrefix={`/api/admin/companies/${id}`}
+        />
+      </div>
+
+      <CustomLeadFieldsEditor
+        initialFields={customFields || []}
         apiPrefix={`/api/admin/companies/${id}`}
       />
     </div>
