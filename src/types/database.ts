@@ -202,6 +202,28 @@ export interface TaskComment {
   profile?: Pick<Profile, "full_name" | "avatar_url">
 }
 
+export type CustomLeadFieldType = "texto" | "numero" | "fecha"
+export type CustomLeadFieldContext = "agency" | "company"
+
+export interface CustomLeadField {
+  id: string
+  context: CustomLeadFieldContext
+  company_id: string | null
+  nombre: string
+  tipo: CustomLeadFieldType
+  obligatorio: boolean
+  orden: number
+  created_at: string
+}
+
+export interface CustomLeadFieldValue {
+  id: string
+  field_id: string
+  lead_id: string
+  valor: string | null
+  created_at: string
+}
+
 export interface AgencyLead {
   id: string
   stage_id: string | null

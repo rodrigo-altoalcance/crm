@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { toSnakeCase } from "@/lib/utils"
 import { z } from "zod"
 
 const payloadSchema = z.object({
@@ -111,6 +112,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     description: `Lead recibido via webhook (${source})`,
     metadata: { webhook_token_id: webhookToken.id, source },
   })
+
+  // Guardar valores de campos personalizados
+  const { data: customFieldDefs } = await supabase
+    .from("custom_lead_fields")
+    .select("id, nombre")
+    .eq("context", "company")
+    .eq("company_id", companyId)
+    .order("orden")
+
+  if (customFieldDefs && customFieldDefs.length > 0) {
+    const valuesToInsert = customFieldDefs
+      .map((def) => ({ def, key: toSnakeCase(def.nombre) }))
+      .filter(({ key }) => key && rawBody[key] !== undefined && rawBody[key] !== null && rawBody[key] !== "")
+      .map(({ def, key }) => ({ field_id: def.id, lead_id: lead.id, valor: String(rawBody[key]) }))
+    if (valuesToInsert.length > 0) {
+      await supabase.from("custom_lead_field_values").insert(valuesToInsert)
+    }
+  }
 
   return NextResponse.json({ success: true, lead_id: lead.id }, { status: 201 })
 }

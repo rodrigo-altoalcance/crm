@@ -100,18 +100,22 @@ if (ids.length > 0) await supabase.from("leads").select("*").in("stage_id", ids)
 
 ## DB — Tablas principales
 ```
-companies          id, name, monthly_fee, currency, payment_day, max_users, status, org_*
-profiles           id(=auth.uid), company_id, role, full_name, permissions(jsonb)
-leads              id, company_id, stage_id, first_name, last_name, email, phone, source, custom_fields(jsonb)
-lead_stages        id, company_id, name, color, position, is_final, is_lost
-lead_activities    id, lead_id, user_id, type, description, metadata(jsonb)
-tasks              id, company_id, lead_id, title, priority, status, assigned_to, due_date
-webhook_tokens     id, company_id, token(uuid), name, field_mapping(jsonb)
+companies               id, name, monthly_fee, currency, payment_day, max_users, status, org_*
+profiles                id(=auth.uid), company_id, role, full_name, permissions(jsonb)
+leads                   id, company_id, stage_id, first_name, last_name, email, phone, source, custom_fields(jsonb), scheduled_at(timestamptz)
+lead_stages             id, company_id, name, color, position, is_final, is_lost
+lead_activities         id, lead_id, user_id, type, description, metadata(jsonb)
+tasks                   id, company_id, lead_id, title, priority, status, assigned_to, due_date
+webhook_tokens          id, company_id, token(uuid), name, field_mapping(jsonb)
 lead_field_definitions  id, company_id, name, label, type, options(jsonb), position
-client_records     id, lead_id, company_id, title, description, type, record_date
-payments           id, company_id, amount, currency, paid_at (super_admin only)
-email_templates    id, name, subject, body_html, type('billing'|'welcome'|'invitation'), is_default
-crm_settings       key, value  (agency_name, agency_email)  — resend_api_key ya NO se guarda aquí, va en env var
+client_records          id, lead_id, company_id, title, description, type, record_date
+payments                id, company_id, amount, currency, paid_at (super_admin only)
+email_templates         id, name, subject, body_html, type('billing'|'welcome'|'invitation'), is_default
+crm_settings            key, value  (agency_name, agency_email)  — resend_api_key ya NO se guarda aquí, va en env var
+agency_leads            id, stage_id, first_name, last_name, email, phone, source, message, custom_fields(jsonb), assigned_to, scheduled_at(timestamptz), created_at, updated_at
+agency_stages           id, name, color, position, is_final, is_lost
+agency_lead_activities  id, lead_id, user_id, type, description, metadata(jsonb)
+agency_tasks            id, lead_id, title, priority, status, assigned_to, due_date
 ```
 
 ## Permisos sellers (profiles.permissions jsonb)
@@ -262,6 +266,136 @@ PATCH  /api/admin/companies/[companyId]/tokens         → actualiza field_mappi
 DELETE /api/admin/companies/[companyId]/tokens/[id]    → elimina token
 POST   /api/admin/companies/[companyId]/tokens/[id]    → regenera token (elimina y recrea)
 ```
+
+## Campo scheduled_at — Fecha de agenda inicial
+
+- Columnas: `leads.scheduled_at TIMESTAMPTZ NULL` y `agency_leads.scheduled_at TIMESTAMPTZ NULL` — migración `007`
+- Llenado manualmente, nunca automático
+- Aparece en: formulario de creación (`NewLeadForm`), detalle del lead (edición inline con ícono lápiz → input → ✓/✗), columna en tabla (`LeadsTable`), tarjeta kanban (`LeadCard` — solo si tiene valor, en indigo)
+- Formato de visualización siempre `DD/MM/YYYY HH:mm` en zona `America/Santiago` via `formatScheduledAt()` de `src/lib/utils.ts`
+- Para convertir datetime-local a ISO al guardar: `new Date(value).toISOString()`
+- El PATCH de edición inline llama a `${apiPrefix}/leads/${lead.id}` con `{ scheduled_at: isoString | null }`
+- Contexto admin agencia: API route `PATCH /api/admin/agency/leads/[id]` — usa `createAdminClient()`, bypasea RLS
+
+## Módulo "Mis tareas" (`/dashboard/tasks`)
+
+- Label en sidebar y h1 de página: **"Mis tareas"** (no "Tareas")
+- El botón "Nueva tarea" fue eliminado de `TasksView` — la creación de tareas solo se hace desde el detalle de un lead
+- `TasksView` sigue mostrando el modal de detalle al hacer clic en una tarea existente
+
+## Kanban — popup de mover lead
+
+- El `Dialog` de comentario obligatorio al mover un lead muestra el título: `"Mover lead: {first_name} {last_name}"`
+- Componente: `LeadsKanban.tsx`
+
+## Módulo de leads — mejoras (aplica a admin agencia y dashboard empresa)
+
+### Buscador en tiempo real
+- Input en `LeadsView.tsx` a la derecha del toggle kanban/lista
+- Filtra en memoria con `useMemo` — busca por nombre, email y teléfono
+- Al cambiar de vista kanban↔lista el filtro se mantiene
+
+### Último comentario en tarjeta del kanban
+- `LeadCard.tsx` muestra `(lead as any).last_comment` con `line-clamp-2` debajo del nombre
+- El campo se carga en el `page.tsx` de listado con una query adicional a `lead_activities` / `agency_lead_activities`:
+```typescript
+// Tipos incluidos: stage_changed, lead_closed, note_added, comment, task_completed
+const lastCommentMap: Record<string, string> = {}
+for (const act of recentActivities || []) {
+  if (act.lead_id && !(act.lead_id in lastCommentMap) && act.description) {
+    lastCommentMap[act.lead_id] = act.description
+  }
+}
+// Adjuntar al mapear leads: { ...l, last_comment: lastCommentMap[l.id] ?? null }
+```
+
+### Scroll horizontal en kanban
+- Patrón correcto: wrapper exterior con `overflow-x-auto w-full`, flex interno con `min-w-max`
+- El `DragDropContext` queda DENTRO del wrapper con scroll (requerido por `@hello-pangea/dnd`)
+```tsx
+<div className="overflow-x-auto w-full pb-4" style={{ WebkitOverflowScrolling: "touch" }}>
+  <DragDropContext onDragEnd={onDragEnd}>
+    <div className="flex gap-4 min-w-max">
+      {/* columnas */}
+    </div>
+  </DragDropContext>
+</div>
+```
+
+### Filtro del buscador en kanban
+- `LeadsKanban` tiene `useState(initialLeads)` para updates optimistas del drag & drop
+- Sin `useEffect`, el kanban ignora cambios del prop (buscador no filtra desde kanban)
+- Solución: `useEffect(() => { setLeads(initialLeads) }, [initialLeads])`
+
+### Comentario sin cambiar etapa en LeadDetailPanel
+- El campo de comentario existente en "Cambiar etapa" permite guardar sin requerir cambio
+- Si `hasChanges` → PATCH a `stage` con comentario; si no → POST a `activities` con `type: "comment"`
+- El botón siempre dice "Guardar", habilitado con solo texto (no requiere cambio de etapa)
+
+### Editar tarea desde el detalle del lead
+- `TaskDetailModal` acepta `canEdit?: boolean` y `teamMembers?: Profile[]`
+- Cuando `canEdit=true` aparece botón "Editar" que activa formulario inline (título, fecha límite, responsable)
+- PATCH al endpoint de tasks, sin generar entrada en el historial del lead
+- `LeadTasksPanel` acepta `canEdit?: boolean` y lo propaga al modal
+- En admin agencia (`/admin/leads/[id]`): `canEdit={true}` siempre
+- En dashboard empresa (`/dashboard/leads/[id]`): `canEdit={role === "super_admin" || role === "company_admin" || permissions?.can_edit_leads}`
+
+## Patrón crítico — mapping manual de Lead desde agencyLead (admin agencia)
+
+En `/admin/leads/[id]/page.tsx`, el objeto `Lead` se construye manualmente desde `agencyLead` (que viene de `agency_leads`). El tipo `AgencyLead` no siempre tiene todos los campos del tipo `Lead` — si el campo existe en la BD pero no en `AgencyLead`, usar `(agencyLead as any).campo`.
+
+```typescript
+// ✅ Incluir TODOS los campos del tipo Lead al mapear desde agencyLead
+const lead: Lead = {
+  ...
+  scheduled_at: (agencyLead as any).scheduled_at ?? null,  // campo en BD pero no en AgencyLead
+  ...
+}
+```
+
+Si se agrega una columna nueva a `agency_leads`, hay que actualizar también la interfaz `AgencyLead` en `src/types/database.ts`.
+
+## Patrón crítico — actualización optimista de campos editables inline
+
+`router.refresh()` es asíncrono — cuando el componente vuelve al modo display después de guardar, el prop `lead` todavía tiene el valor viejo. Usar estado local para actualizar la UI inmediatamente, igual que `setCurrentStageId` en el cambio de etapa.
+
+```typescript
+// ✅ Patrón correcto: estado local + router.refresh()
+const [displayScheduledAt, setDisplayScheduledAt] = useState(lead.scheduled_at)
+
+async function saveScheduledAt() {
+  const res = await fetch(...)
+  if (res.ok) {
+    setDisplayScheduledAt(value)   // actualiza inmediatamente
+    setEditingScheduled(false)
+    router.refresh()               // sincroniza con el servidor eventualmente
+  }
+}
+
+// En el display, usar el estado local (no el prop):
+{displayScheduledAt ? formatScheduledAt(displayScheduledAt) : "Sin fecha"}
+```
+
+## Patrón crítico — createClient() en componentes "use client"
+
+Next.js SSR ejecuta componentes `"use client"` en el servidor durante el build. Si `createClient()` (browser Supabase) se llama al nivel del componente, falla en Vercel porque las env vars no están disponibles en build time.
+
+```typescript
+// ❌ ROMPE el build en Vercel
+export function LoginForm() {
+  const supabase = createClient() // se ejecuta en SSR → crash
+  ...
+}
+
+// ✅ Correcto: solo dentro de handlers/effects (browser únicamente)
+export function LoginForm() {
+  async function handleSubmit() {
+    const supabase = createClient() // solo corre en el browser
+    ...
+  }
+}
+```
+Archivos afectados y corregidos: `LoginForm.tsx`, `AdminSidebar.tsx`, `DashboardSidebar.tsx`, `activar-cuenta/page.tsx`
 
 ## Convenciones UI
 - Sidebar oscuro (`#0F172A`), accent `#6366F1` (indigo-500), fondo `#F8FAFC`
