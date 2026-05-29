@@ -19,15 +19,20 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   const companyId = profile.role === "super_admin" ? impersonatedId : profile.company_id
   if (!companyId) redirect("/login")
 
-  const [{ data: lead }, { data: activities }, { data: tasks }, { data: stages }, { data: teamMembers }] = await Promise.all([
+  const [{ data: lead }, { data: activities }, { data: tasks }, { data: stages }, { data: teamMembers }, { data: customFields }, { data: fieldValueRows }] = await Promise.all([
     supabase.from("leads").select("*, stage:lead_stages(*), assigned_profile:profiles!assigned_to(id, full_name, avatar_url)").eq("id", id).single(),
     supabase.from("lead_activities").select("*, profile:profiles(full_name, avatar_url)").eq("lead_id", id).order("created_at", { ascending: false }),
     supabase.from("tasks").select("*, assigned_profile:profiles!assigned_to(id, full_name, avatar_url)").eq("lead_id", id).order("created_at", { ascending: false }),
     supabase.from("lead_stages").select("*").eq("company_id", companyId).order("position"),
     supabase.from("profiles").select("id, full_name, avatar_url").eq("company_id", companyId),
+    supabase.from("custom_lead_fields").select("*").eq("context", "company").eq("company_id", companyId).order("orden"),
+    supabase.from("custom_lead_field_values").select("field_id, valor").eq("lead_id", id),
   ])
 
   if (!lead) notFound()
+
+  const initialFieldValues: Record<string, string> = {}
+  for (const v of fieldValueRows || []) initialFieldValues[v.field_id] = v.valor ?? ""
 
   const canEditTasks = profile.role === "super_admin" || profile.role === "company_admin" || profile.permissions?.can_edit_leads === true
 
@@ -39,7 +44,14 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-2">
-          <LeadDetailPanel lead={lead} stages={stages || []} teamMembers={teamMembers || []} profile={profile} />
+          <LeadDetailPanel
+            lead={lead}
+            stages={stages || []}
+            teamMembers={teamMembers || []}
+            profile={profile}
+            customFields={customFields || []}
+            initialFieldValues={initialFieldValues}
+          />
         </div>
 
         <div className="space-y-6">

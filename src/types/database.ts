@@ -202,6 +202,16 @@ export interface TaskComment {
   profile?: Pick<Profile, "full_name" | "avatar_url">
 }
 
+export interface UserLeadColumnPreference {
+  id: string
+  user_id: string
+  context: "agency" | "company"
+  company_id: string | null
+  column_key: string
+  visible: boolean
+  created_at: string
+}
+
 export type CustomLeadFieldType = "texto" | "numero" | "fecha"
 export type CustomLeadFieldContext = "agency" | "company"
 

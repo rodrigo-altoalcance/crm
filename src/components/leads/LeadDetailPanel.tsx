@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { CloseLeadConfirmDialog } from "./CloseLeadConfirmDialog"
 import { formatDate, formatScheduledAt } from "@/lib/utils"
 import { Mail, Phone, MessageSquare, Calendar, Pencil, X, Check } from "lucide-react"
-import type { Lead, LeadStage, Profile } from "@/types/database"
+import type { Lead, LeadStage, Profile, CustomLeadField } from "@/types/database"
 import { canCloseLead } from "@/lib/auth/roles"
 
 interface LeadDetailPanelProps {
@@ -23,6 +23,8 @@ interface LeadDetailPanelProps {
   profile: Profile
   apiPrefix?: string
   closedRedirectPath?: string
+  customFields?: CustomLeadField[]
+  initialFieldValues?: Record<string, string>
 }
 
 const sourceLabels: Record<string, string> = {
@@ -31,9 +33,13 @@ const sourceLabels: Record<string, string> = {
   manual: "Manual",
 }
 
-export function LeadDetailPanel({ lead, stages, teamMembers, profile, apiPrefix = "/api", closedRedirectPath = "/dashboard/clients" }: LeadDetailPanelProps) {
+export function LeadDetailPanel({ lead, stages, teamMembers, profile, apiPrefix = "/api", closedRedirectPath = "/dashboard/clients", customFields = [], initialFieldValues = {} }: LeadDetailPanelProps) {
   const router = useRouter()
   const [closingLead, setClosingLead] = useState(false)
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>(initialFieldValues)
+  const [editingFieldId, setEditingFieldId] = useState<string | null>(null)
+  const [editingValue, setEditingValue] = useState("")
+  const [savingFieldId, setSavingFieldId] = useState<string | null>(null)
   const [pendingStageId, setPendingStageId] = useState<string | null>(null)
   const [currentStageId, setCurrentStageId] = useState(lead.stage_id)
   const [selectedStageId, setSelectedStageId] = useState(lead.stage_id)
@@ -132,6 +138,29 @@ export function LeadDetailPanel({ lead, stages, teamMembers, profile, apiPrefix 
       toast.error("Error al guardar la fecha")
     }
     setSavingScheduled(false)
+  }
+
+  function startEditField(field: CustomLeadField) {
+    setEditingFieldId(field.id)
+    setEditingValue(fieldValues[field.id] ?? "")
+  }
+
+  async function saveFieldValue(field: CustomLeadField) {
+    setSavingFieldId(field.id)
+    const res = await fetch(`${apiPrefix}/leads/${lead.id}/custom-field-values`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ field_id: field.id, valor: editingValue }),
+    })
+    if (res.ok) {
+      setFieldValues((prev) => ({ ...prev, [field.id]: editingValue }))
+      setEditingFieldId(null)
+      toast.success("Campo guardado")
+    } else {
+      const data = await res.json().catch(() => ({}))
+      toast.error(data.error || "Error al guardar")
+    }
+    setSavingFieldId(null)
   }
 
   async function handleConfirmClose() {
@@ -283,6 +312,56 @@ export function LeadDetailPanel({ lead, stages, teamMembers, profile, apiPrefix 
           </div>
         </CardContent>
       </Card>
+
+      {customFields.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Información adicional</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {customFields.map((field) => {
+              const isEditing = editingFieldId === field.id
+              const isSaving = savingFieldId === field.id
+              const currentValue = fieldValues[field.id]
+              return (
+                <div key={field.id} className="space-y-1">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    {field.nombre}
+                    {field.obligatorio && <span className="text-red-400 ml-1">*</span>}
+                  </p>
+                  {isEditing ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type={field.tipo === "numero" ? "number" : field.tipo === "fecha" ? "date" : "text"}
+                        value={editingValue}
+                        onChange={(e) => setEditingValue(e.target.value)}
+                        className="h-8 text-sm flex-1"
+                        autoFocus
+                        disabled={isSaving}
+                      />
+                      <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600" onClick={() => saveFieldValue(field)} disabled={isSaving}>
+                        <Check className="w-4 h-4" />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400" onClick={() => setEditingFieldId(null)} disabled={isSaving}>
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-slate-600">
+                        {currentValue || <span className="text-slate-400">—</span>}
+                      </span>
+                      <button onClick={() => startEditField(field)} className="text-slate-400 hover:text-indigo-600 transition-colors">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       <CloseLeadConfirmDialog
         open={closingLead}

@@ -22,6 +22,8 @@ export default async function AdminLeadDetailPage({ params }: { params: Promise<
     { data: agencyTasks },
     { data: agencyStages },
     { data: teamMembers },
+    { data: customFields },
+    { data: fieldValueRows },
   ] = await Promise.all([
     admin
       .from("agency_leads")
@@ -40,7 +42,12 @@ export default async function AdminLeadDetailPage({ params }: { params: Promise<
       .order("created_at", { ascending: false }),
     admin.from("agency_stages").select("*").order("position"),
     supabase.from("profiles").select("id, full_name, avatar_url").eq("role", "super_admin"),
+    admin.from("custom_lead_fields").select("*").eq("context", "agency").is("company_id", null).order("orden"),
+    admin.from("custom_lead_field_values").select("field_id, valor").eq("lead_id", id),
   ])
+
+  const initialFieldValues: Record<string, string> = {}
+  for (const v of fieldValueRows || []) initialFieldValues[v.field_id] = v.valor ?? ""
 
   if (!agencyLead) notFound()
 
@@ -96,6 +103,8 @@ export default async function AdminLeadDetailPage({ params }: { params: Promise<
             profile={profile}
             apiPrefix="/api/admin/agency"
             closedRedirectPath="/admin/leads"
+            customFields={customFields || []}
+            initialFieldValues={initialFieldValues}
           />
         </div>
 

@@ -17,7 +17,7 @@ export default async function LeadsPage() {
   const companyId = profile.role === "super_admin" ? impersonatedCompanyId : profile.company_id
   if (!companyId) redirect("/login")
 
-  const [{ data: stages }, { data: leads }, { data: teamMembers }, { data: recentActivities }] = await Promise.all([
+  const [{ data: stages }, { data: leads }, { data: teamMembers }, { data: recentActivities }, { data: customFields }, { data: columnPrefsRows }] = await Promise.all([
     supabase.from("lead_stages").select("*").eq("company_id", companyId).order("position"),
     supabase.from("leads").select("*, stage:lead_stages(*), assigned_profile:profiles!assigned_to(id, full_name, avatar_url)")
       .eq("company_id", companyId)
@@ -28,6 +28,8 @@ export default async function LeadsPage() {
       .select("lead_id, description, type, created_at")
       .in("type", ["stage_changed", "lead_closed", "note_added", "comment", "task_completed"])
       .order("created_at", { ascending: false }),
+    supabase.from("custom_lead_fields").select("*").eq("context", "company").eq("company_id", companyId).order("orden"),
+    supabase.from("user_lead_column_preferences").select("column_key, visible").eq("user_id", profile.id).eq("context", "company").eq("company_id", companyId),
   ])
 
   const lastCommentMap: Record<string, string> = {}
@@ -38,6 +40,22 @@ export default async function LeadsPage() {
   }
 
   const leadsWithComment = (leads || []).map((l) => ({ ...l, last_comment: lastCommentMap[l.id] ?? null }))
+
+  const initialColumnPrefs: Record<string, boolean> = {}
+  for (const row of columnPrefsRows || []) initialColumnPrefs[row.column_key] = row.visible
+
+  const leadIds = (leads || []).map((l) => l.id)
+  let fieldValuesMap: Record<string, Record<string, string>> = {}
+  if (leadIds.length > 0 && (customFields || []).length > 0) {
+    const { data: allValues } = await supabase
+      .from("custom_lead_field_values")
+      .select("lead_id, field_id, valor")
+      .in("lead_id", leadIds)
+    for (const v of allValues || []) {
+      if (!fieldValuesMap[v.lead_id]) fieldValuesMap[v.lead_id] = {}
+      fieldValuesMap[v.lead_id][v.field_id] = v.valor ?? ""
+    }
+  }
 
   return (
     <div className="p-8">
@@ -58,6 +76,10 @@ export default async function LeadsPage() {
         teamMembers={teamMembers || []}
         profile={profile}
         companyId={companyId}
+        customFields={customFields || []}
+        initialColumnPrefs={initialColumnPrefs}
+        fieldValuesMap={fieldValuesMap}
+        columnPrefsApiPrefix="/api/settings"
       />
     </div>
   )

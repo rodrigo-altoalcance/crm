@@ -1,11 +1,13 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { LayoutGrid, List, Search } from "lucide-react"
+import { LayoutGrid, List, Search, Columns3 } from "lucide-react"
 import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu"
 import { LeadsKanban } from "./LeadsKanban"
 import { LeadsTable } from "./LeadsTable"
-import type { Lead, LeadStage, Profile } from "@/types/database"
+import type { Lead, LeadStage, Profile, CustomLeadField } from "@/types/database"
 
 interface LeadsViewProps {
   leads: Lead[]
@@ -15,11 +17,33 @@ interface LeadsViewProps {
   companyId: string
   basePath?: string
   apiPrefix?: string
+  customFields?: CustomLeadField[]
+  initialColumnPrefs?: Record<string, boolean>
+  fieldValuesMap?: Record<string, Record<string, string>>
+  columnPrefsApiPrefix?: string
 }
 
-export function LeadsView({ leads, stages, teamMembers, profile, companyId, basePath = "/dashboard/leads", apiPrefix = "/api" }: LeadsViewProps) {
+export function LeadsView({
+  leads, stages, teamMembers, profile, companyId,
+  basePath = "/dashboard/leads", apiPrefix = "/api",
+  customFields = [], initialColumnPrefs = {}, fieldValuesMap = {},
+  columnPrefsApiPrefix,
+}: LeadsViewProps) {
   const [view, setView] = useState<"kanban" | "table">("kanban")
   const [search, setSearch] = useState("")
+  const [columnPrefs, setColumnPrefs] = useState<Record<string, boolean>>(initialColumnPrefs)
+
+  const visibleCustomFieldIds = customFields.filter((f) => columnPrefs[f.id] === true).map((f) => f.id)
+
+  async function handleToggleColumn(fieldId: string, visible: boolean) {
+    setColumnPrefs((prev) => ({ ...prev, [fieldId]: visible }))
+    if (!columnPrefsApiPrefix) return
+    await fetch(`${columnPrefsApiPrefix}/column-preferences`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ column_key: fieldId, visible }),
+    })
+  }
 
   const filteredLeads = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -63,12 +87,45 @@ export function LeadsView({ leads, stages, teamMembers, profile, companyId, base
             className="pl-8 h-9 w-56 bg-white text-sm"
           />
         </div>
+
+        {view === "table" && customFields.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9 ml-1">
+                <Columns3 className="w-4 h-4 mr-1.5" /> Columnas
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuLabel>Columnas personalizadas</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {customFields.map((f) => (
+                <DropdownMenuCheckboxItem
+                  key={f.id}
+                  checked={columnPrefs[f.id] === true}
+                  onCheckedChange={(checked) => handleToggleColumn(f.id, checked)}
+                  onSelect={(e) => e.preventDefault()}
+                >
+                  {f.nombre}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
       {view === "kanban" ? (
         <LeadsKanban leads={filteredLeads} stages={stages} profile={profile} companyId={companyId} basePath={basePath} apiPrefix={apiPrefix} />
       ) : (
-        <LeadsTable leads={filteredLeads} stages={stages} teamMembers={teamMembers} basePath={basePath} apiPrefix={apiPrefix} />
+        <LeadsTable
+        leads={filteredLeads}
+        stages={stages}
+        teamMembers={teamMembers}
+        basePath={basePath}
+        apiPrefix={apiPrefix}
+        customFields={customFields}
+        visibleCustomFieldIds={visibleCustomFieldIds}
+        fieldValuesMap={fieldValuesMap}
+      />
       )}
     </div>
   )

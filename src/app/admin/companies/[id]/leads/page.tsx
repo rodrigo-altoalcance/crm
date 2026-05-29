@@ -20,7 +20,7 @@ export default async function AdminCompanyLeadsPage({
 
   const admin = createAdminClient()
 
-  const [{ data: company }, { data: stages }, { data: leads }, { data: teamMembers }] =
+  const [{ data: company }, { data: stages }, { data: leads }, { data: teamMembers }, { data: customFields }, { data: columnPrefsRows }] =
     await Promise.all([
       admin.from("companies").select("id, name").eq("id", id).single(),
       admin.from("lead_stages").select("*").eq("company_id", id).order("position"),
@@ -30,12 +30,30 @@ export default async function AdminCompanyLeadsPage({
         .eq("company_id", id)
         .order("created_at", { ascending: false }),
       admin.from("profiles").select("id, full_name, avatar_url, role").eq("company_id", id),
+      admin.from("custom_lead_fields").select("*").eq("context", "company").eq("company_id", id).order("orden"),
+      supabase.from("user_lead_column_preferences").select("column_key, visible").eq("user_id", profile.id).eq("context", "company").eq("company_id", id),
     ])
 
   if (!company) notFound()
 
   const mappedStages: LeadStage[] = (stages || []).map((s) => ({ ...s }))
   const mappedLeads: Lead[] = (leads || []).map((l) => ({ ...l })) as Lead[]
+
+  const initialColumnPrefs: Record<string, boolean> = {}
+  for (const row of columnPrefsRows || []) initialColumnPrefs[row.column_key] = row.visible
+
+  const leadIds = mappedLeads.map((l) => l.id)
+  let fieldValuesMap: Record<string, Record<string, string>> = {}
+  if (leadIds.length > 0 && (customFields || []).length > 0) {
+    const { data: allValues } = await admin
+      .from("custom_lead_field_values")
+      .select("lead_id, field_id, valor")
+      .in("lead_id", leadIds)
+    for (const v of allValues || []) {
+      if (!fieldValuesMap[v.lead_id]) fieldValuesMap[v.lead_id] = {}
+      fieldValuesMap[v.lead_id][v.field_id] = v.valor ?? ""
+    }
+  }
 
   return (
     <div className="p-8">
@@ -67,6 +85,10 @@ export default async function AdminCompanyLeadsPage({
         companyId={id}
         basePath={`/admin/companies/${id}/leads`}
         apiPrefix={`/api/admin/companies/${id}`}
+        customFields={customFields || []}
+        initialColumnPrefs={initialColumnPrefs}
+        fieldValuesMap={fieldValuesMap}
+        columnPrefsApiPrefix={`/api/admin/companies/${id}`}
       />
     </div>
   )

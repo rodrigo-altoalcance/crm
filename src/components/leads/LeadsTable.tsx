@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
 import { formatDate, formatScheduledAt } from "@/lib/utils"
-import type { Lead, LeadStage, Profile } from "@/types/database"
+import type { Lead, LeadStage, Profile, CustomLeadField } from "@/types/database"
 
 interface LeadsTableProps {
   leads: Lead[]
@@ -19,6 +19,9 @@ interface LeadsTableProps {
   teamMembers: Pick<Profile, "id" | "full_name" | "avatar_url">[]
   basePath?: string
   apiPrefix?: string
+  customFields?: CustomLeadField[]
+  visibleCustomFieldIds?: string[]
+  fieldValuesMap?: Record<string, Record<string, string>>
 }
 
 const sourceLabels: Record<string, string> = {
@@ -33,12 +36,17 @@ export function LeadsTable({
   teamMembers,
   basePath = "/dashboard/leads",
   apiPrefix = "/api",
+  customFields = [],
+  visibleCustomFieldIds = [],
+  fieldValuesMap = {},
 }: LeadsTableProps) {
   const router = useRouter()
   const stageMap = Object.fromEntries(stages.map((s) => [s.id, s]))
   const memberMap = Object.fromEntries(teamMembers.map((m) => [m.id, m]))
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [loadingDelete, setLoadingDelete] = useState(false)
+
+  const visibleCustomFields = customFields.filter((f) => visibleCustomFieldIds.includes(f.id))
 
   async function handleDelete() {
     if (!deletingId) return
@@ -72,13 +80,16 @@ export function LeadsTable({
               <TableHead>Asignado</TableHead>
               <TableHead>Fecha agenda</TableHead>
               <TableHead>Fecha</TableHead>
+              {visibleCustomFields.map((f) => (
+                <TableHead key={f.id}>{f.nombre}</TableHead>
+              ))}
               <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {leads.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-slate-500 py-12">
+                <TableCell colSpan={8 + visibleCustomFields.length} className="text-center text-slate-500 py-12">
                   No hay leads para mostrar
                 </TableCell>
               </TableRow>
@@ -134,6 +145,13 @@ export function LeadsTable({
                   <TableCell>
                     <span className="text-sm text-slate-500">{formatDate(lead.created_at)}</span>
                   </TableCell>
+                  {visibleCustomFields.map((f) => (
+                    <TableCell key={f.id}>
+                      <span className="text-sm text-slate-600">
+                        {fieldValuesMap[lead.id]?.[f.id] || <span className="text-slate-300">—</span>}
+                      </span>
+                    </TableCell>
+                  ))}
                   <TableCell>
                     <Button
                       variant="ghost"

@@ -14,7 +14,7 @@ export default async function AdminLeadsPage() {
   if (!profile || profile.role !== "super_admin") redirect("/login")
 
   const admin = createAdminClient()
-  const [{ data: agencyStages }, { data: agencyLeads }, { data: teamMembers }, { data: recentActivities }] = await Promise.all([
+  const [{ data: agencyStages }, { data: agencyLeads }, { data: teamMembers }, { data: recentActivities }, { data: customFields }, { data: columnPrefsRows }] = await Promise.all([
     admin.from("agency_stages").select("*").order("position"),
     admin
       .from("agency_leads")
@@ -26,6 +26,8 @@ export default async function AdminLeadsPage() {
       .select("lead_id, description, type, created_at")
       .in("type", ["stage_changed", "lead_closed", "note_added", "comment", "task_completed"])
       .order("created_at", { ascending: false }),
+    admin.from("custom_lead_fields").select("*").eq("context", "agency").is("company_id", null).order("orden"),
+    supabase.from("user_lead_column_preferences").select("column_key, visible").eq("user_id", profile.id).eq("context", "agency").is("company_id", null),
   ])
 
   // Build map: lead_id -> last activity description
@@ -41,6 +43,22 @@ export default async function AdminLeadsPage() {
     ...s,
     company_id: "agency",
   }))
+
+  const initialColumnPrefs: Record<string, boolean> = {}
+  for (const row of columnPrefsRows || []) initialColumnPrefs[row.column_key] = row.visible
+
+  const agencyLeadIds = (agencyLeads || []).map((l) => l.id)
+  let fieldValuesMap: Record<string, Record<string, string>> = {}
+  if (agencyLeadIds.length > 0 && (customFields || []).length > 0) {
+    const { data: allValues } = await admin
+      .from("custom_lead_field_values")
+      .select("lead_id, field_id, valor")
+      .in("lead_id", agencyLeadIds)
+    for (const v of allValues || []) {
+      if (!fieldValuesMap[v.lead_id]) fieldValuesMap[v.lead_id] = {}
+      fieldValuesMap[v.lead_id][v.field_id] = v.valor ?? ""
+    }
+  }
 
   // Map agency_leads to Lead shape for reuse in shared components
   const leads: Lead[] = (agencyLeads || []).map((l) => ({
@@ -85,6 +103,10 @@ export default async function AdminLeadsPage() {
         companyId="agency"
         basePath="/admin/leads"
         apiPrefix="/api/admin/agency"
+        customFields={customFields || []}
+        initialColumnPrefs={initialColumnPrefs}
+        fieldValuesMap={fieldValuesMap}
+        columnPrefsApiPrefix="/api/admin/agency"
       />
     </div>
   )

@@ -27,6 +27,8 @@ export default async function AdminCompanyLeadDetailPage({
     { data: rawTasks },
     { data: stages },
     { data: teamMembers },
+    { data: customFields },
+    { data: fieldValueRows },
   ] = await Promise.all([
     admin.from("companies").select("id, name").eq("id", companyId).single(),
     admin
@@ -48,7 +50,12 @@ export default async function AdminCompanyLeadDetailPage({
       .order("created_at", { ascending: false }),
     admin.from("lead_stages").select("*").eq("company_id", companyId).order("position"),
     admin.from("profiles").select("id, full_name, avatar_url").eq("company_id", companyId),
+    admin.from("custom_lead_fields").select("*").eq("context", "company").eq("company_id", companyId).order("orden"),
+    admin.from("custom_lead_field_values").select("field_id, valor").eq("lead_id", leadId),
   ])
+
+  const initialFieldValues: Record<string, string> = {}
+  for (const v of fieldValueRows || []) initialFieldValues[v.field_id] = v.valor ?? ""
 
   if (!company) notFound()
   if (!rawLead) notFound()
@@ -85,6 +92,8 @@ export default async function AdminCompanyLeadDetailPage({
             profile={profile}
             apiPrefix={apiPrefix}
             closedRedirectPath={`/admin/companies/${companyId}/leads`}
+            customFields={customFields || []}
+            initialFieldValues={initialFieldValues}
           />
         </div>
 
