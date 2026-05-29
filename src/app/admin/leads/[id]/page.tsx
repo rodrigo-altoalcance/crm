@@ -57,6 +57,7 @@ export default async function AdminLeadDetailPage({ params }: { params: Promise<
     assigned_to: agencyLead.assigned_to ?? null,
     notes: null,
     custom_fields: agencyLead.custom_fields ?? {},
+    scheduled_at: (agencyLead as any).scheduled_at ?? null,
     created_at: agencyLead.created_at,
     updated_at: agencyLead.updated_at ?? agencyLead.created_at,
     stage: agencyLead.stage ? { ...agencyLead.stage, company_id: "agency" } : undefined,

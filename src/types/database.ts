@@ -212,5 +212,6 @@ export interface AgencyLead {
   source: string | null
   message: string | null
   custom_fields: Record<string, string>
+  scheduled_at: string | null
   created_at: string
 }
