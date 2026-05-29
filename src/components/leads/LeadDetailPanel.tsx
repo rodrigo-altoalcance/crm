@@ -40,6 +40,7 @@ export function LeadDetailPanel({ lead, stages, teamMembers, profile, apiPrefix 
   const [comment, setComment] = useState("")
   const [loading, setLoading] = useState(false)
   const [editingScheduled, setEditingScheduled] = useState(false)
+  const [displayScheduledAt, setDisplayScheduledAt] = useState(lead.scheduled_at)
   const [scheduledValue, setScheduledValue] = useState(() => {
     if (!lead.scheduled_at) return ""
     const d = new Date(lead.scheduled_at)
@@ -124,6 +125,7 @@ export function LeadDetailPanel({ lead, stages, teamMembers, profile, apiPrefix 
     })
     if (res.ok) {
       toast.success("Fecha de agenda actualizada")
+      setDisplayScheduledAt(value)
       setEditingScheduled(false)
       router.refresh()
     } else {
@@ -190,7 +192,7 @@ export function LeadDetailPanel({ lead, stages, teamMembers, profile, apiPrefix 
                 ) : (
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-slate-600">
-                      {lead.scheduled_at ? formatScheduledAt(lead.scheduled_at) : <span className="text-slate-400">Sin fecha</span>}
+                      {displayScheduledAt ? formatScheduledAt(displayScheduledAt) : <span className="text-slate-400">Sin fecha</span>}
                     </span>
                     <button onClick={() => setEditingScheduled(true)} className="text-slate-400 hover:text-indigo-600 transition-colors">
                       <Pencil className="w-3.5 h-3.5" />
