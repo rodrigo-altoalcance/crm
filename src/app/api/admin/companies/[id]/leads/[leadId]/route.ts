@@ -35,10 +35,11 @@ export async function PATCH(
   if (profile?.role !== "super_admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
   const body = await request.json()
+  const { first_name, last_name, email, phone, message, source, assigned_to, scheduled_at, stage_id } = body
   const admin = createAdminClient()
   const { data, error } = await admin
     .from("leads")
-    .update({ ...body, updated_at: new Date().toISOString() })
+    .update({ first_name, last_name, email, phone, message, source, assigned_to, scheduled_at, stage_id, updated_at: new Date().toISOString() })
     .eq("id", leadId)
     .eq("company_id", companyId)
     .select()

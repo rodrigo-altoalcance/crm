@@ -31,10 +31,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
 
   const body = await request.json()
+  const { first_name, last_name, email, phone, message, source, assigned_to, scheduled_at, stage_id } = body
   const admin = createAdminClient()
   const { data, error } = await admin
     .from("agency_leads")
-    .update({ ...body, updated_at: new Date().toISOString() })
+    .update({ first_name, last_name, email, phone, message, source, assigned_to, scheduled_at, stage_id, updated_at: new Date().toISOString() })
     .eq("id", id)
     .select()
     .single()

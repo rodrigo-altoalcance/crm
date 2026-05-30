@@ -13,11 +13,12 @@ export async function PATCH(
   if (profile?.role !== "super_admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
   const body = await request.json()
+  const { name, color, position, is_final, is_lost } = body
   const admin = createAdminClient()
 
   const { data, error } = await admin
     .from("lead_stages")
-    .update(body)
+    .update({ name, color, position, is_final, is_lost })
     .eq("id", stageId)
     .eq("company_id", companyId)
     .select()

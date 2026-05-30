@@ -111,6 +111,127 @@ const ids = (stages || []).map(s => s.id)
 if (ids.length > 0) await supabase.from("leads").select("*").in("stage_id", ids)
 ```
 
+## Seguridad — reglas de desarrollo API
+
+Estas reglas surgieron de un audit de seguridad completo sobre las 73 rutas de `src/app/api/`. Aplicar en toda ruta nueva.
+
+### 1. Siempre filtrar por `company_id` en queries (BOLA/IDOR)
+
+Cualquier query que lea o escriba datos de una empresa **debe** incluir `.eq("company_id", companyId)`. Sin ese filtro, un usuario autenticado de Empresa A puede leer datos de Empresa B conociendo el UUID.
+
+```typescript
+// ❌ BOLA — sin filtro de empresa
+supabase.from("leads").select("*").eq("id", leadId)
+
+// ✅ Correcto — scoped por empresa
+supabase.from("leads").select("*").eq("id", leadId).eq("company_id", companyId)
+```
+
+Aplica también a recursos relacionados: antes de leer actividades, tareas o comentarios de un lead, verificar que ese lead pertenece a la empresa:
+```typescript
+const { data: lead } = await supabase.from("leads").select("id")
+  .eq("id", leadId).eq("company_id", companyId).single()
+if (!lead) return NextResponse.json({ error: "Lead no encontrado" }, { status: 404 })
+```
+
+### 2. Nunca pasar `body` completo a `.update()` (mass assignment)
+
+Siempre desestructurar solo los campos permitidos antes de actualizar.
+
+```typescript
+// ❌ Mass assignment — cualquier campo del body va a la BD
+supabase.from("leads").update(body).eq("id", id)
+
+// ✅ Whitelist explícita
+const { first_name, last_name, email, phone, message, source, assigned_to, scheduled_at } = body
+supabase.from("leads").update({ first_name, last_name, email, phone, message, source, assigned_to, scheduled_at })
+  .eq("id", id).eq("company_id", companyId)
+```
+
+Whitelists de referencia por tabla:
+- `leads` (dashboard PATCH): `first_name, last_name, email, phone, message, source, assigned_to, scheduled_at` — **excluir `stage_id`** (va por `/stage` con comentario obligatorio)
+- `leads` / `agency_leads` (admin PATCH): agregar `stage_id`
+- `lead_stages` / `agency_stages`: `name, color, position, is_final, is_lost`
+- `custom_lead_fields`: `nombre, tipo, obligatorio, orden`
+- `lead_field_definitions`: `name, label, type, options, required, position`
+- `email_templates`: `name, subject, body_html, type, is_default`
+- `companies`: `name, monthly_fee, currency, payment_day, max_users, status, email, next_payment_date, org_name, org_email, org_phone, org_website`
+
+### 3. `createAdminClient()` bypasea RLS — requiere checks manuales
+
+Cuando se usa `createAdminClient()`, no hay RLS de respaldo. Toda validación de pertenencia debe hacerse explícitamente en el código.
+
+```typescript
+// ❌ Admin client sin check de company — cualquier lead accesible
+const admin = createAdminClient()
+admin.from("lead_activities").select("*").eq("lead_id", leadId)
+
+// ✅ Verificar primero que el lead pertenece a la empresa
+const { data: lead } = await admin.from("leads").select("id")
+  .eq("id", leadId).eq("company_id", companyId).single()
+if (!lead) return NextResponse.json({ error: "Lead no encontrado" }, { status: 404 })
+```
+
+Rutas que usan `createAdminClient()` (requieren especial atención):
+- `/api/admin/companies/[id]/leads/**` — todas filtran por `company_id`
+- `/api/admin/agency/leads/**` — agency no tiene company_id, pero sí super_admin check
+- `/api/webhook/leads/[token]` y `/api/webhook/agency/[token]` — público, el token provee el company_id
+
+### 4. Cookie de impersonación — configuración obligatoria
+
+```typescript
+// ✅ Siempre con estas opciones
+cookieStore.set("impersonated_company", company_id, {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "lax",
+  path: "/",
+})
+```
+
+La cookie solo se lee en server components (`cookies()` de `next/headers`) — nunca con `document.cookie`. El `httpOnly: true` no rompe nada.
+
+### 5. Redirects en `proxy.ts` — usar origen fijo
+
+```typescript
+// ❌ Open redirect potencial — host manipulable
+NextResponse.redirect(new URL("/login", request.url))
+
+// ✅ Origen fijo
+const origin = process.env.NEXT_PUBLIC_SITE_URL || "https://crm.altoalcance.cl"
+NextResponse.redirect(new URL("/login", origin))
+```
+
+### 6. Validar payload de webhooks con Zod
+
+El webhook público en `/api/webhook/leads/[token]` tiene un schema Zod definido que **debe** ejecutarse:
+
+```typescript
+const result = payloadSchema.safeParse(await request.json())
+if (!result.success) return NextResponse.json({ error: "Payload inválido" }, { status: 400 })
+rawBody = result.data
+```
+
+### 7. Uploads de archivo — validar MIME y extensión
+
+```typescript
+const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif", "image/svg+xml"]
+const ALLOWED_EXTS = ["png", "jpg", "jpeg", "webp", "gif", "svg"]
+const ext = (file.name.split(".").pop() || "").toLowerCase()
+if (!ALLOWED_TYPES.includes(file.type) || !ALLOWED_EXTS.includes(ext)) {
+  return NextResponse.json({ error: "Tipo de archivo no permitido" }, { status: 400 })
+}
+```
+
+### 8. `crm_settings` — solo claves permitidas
+
+```typescript
+const ALLOWED_KEYS = ["agency_name", "agency_email", "agency_address", "agency_phone", "agency_website", "agency_logo_url"]
+const upserts = Object.entries(body)
+  .filter(([key]) => ALLOWED_KEYS.includes(key))
+  .map(([key, value]) => ({ key, value: String(value), updated_at: new Date().toISOString() }))
+```
+
 ## DB — Tablas principales
 ```
 companies                    id, name, monthly_fee, currency, payment_day, max_users, status, org_*

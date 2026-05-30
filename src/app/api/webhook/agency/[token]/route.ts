@@ -49,7 +49,8 @@ export async function POST(
   const email = mapped.email || mapped.correo || ""
   const phone = mapped.phone || mapped.telefono || mapped.fono || ""
   const message = mapped.message || mapped.mensaje || ""
-  const source = mapped.source || mapped.origen || "meta"
+  const rawSource = mapped.source || mapped.origen || "meta"
+  const source = ["meta", "calendly", "manual"].includes(rawSource) ? rawSource : "meta"
 
   if (!customFields.empresa && (mapped.empresa || rawBody.empresa)) {
     customFields.empresa = String(mapped.empresa || rawBody.empresa || "")

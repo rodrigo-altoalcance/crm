@@ -25,6 +25,7 @@ export async function PATCH(
     .from("lead_stages")
     .select("*")
     .eq("id", stage_id)
+    .eq("company_id", companyId)
     .single()
 
   if (!stage) return NextResponse.json({ error: "Etapa no encontrada" }, { status: 404 })

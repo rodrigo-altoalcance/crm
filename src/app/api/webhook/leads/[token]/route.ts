@@ -12,10 +12,6 @@ const payloadSchema = z.object({
   source: z.enum(["meta", "calendly", "manual"]).optional(),
 }).passthrough()
 
-function mapField(value: string): string {
-  return value.startsWith("custom:") ? value : value
-}
-
 export async function POST(request: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
   const supabase = createAdminClient()
@@ -35,7 +31,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
 
   let rawBody: Record<string, unknown>
   try {
-    rawBody = await request.json()
+    const json = await request.json()
+    const result = payloadSchema.safeParse(json)
+    if (!result.success) {
+      return NextResponse.json({ error: "Payload inválido" }, { status: 400 })
+    }
+    rawBody = result.data
   } catch {
     return NextResponse.json({ error: "Payload inválido" }, { status: 400 })
   }

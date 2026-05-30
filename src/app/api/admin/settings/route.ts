@@ -16,12 +16,16 @@ export async function POST(request: Request) {
   const profile = await getProfile(supabase)
   if (profile?.role !== "super_admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
+  const ALLOWED_KEYS = ["agency_name", "agency_email", "agency_address", "agency_phone", "agency_website", "agency_logo_url"]
+
   const body = await request.json()
-  const upserts = Object.entries(body).map(([key, value]) => ({
-    key,
-    value: String(value),
-    updated_at: new Date().toISOString(),
-  }))
+  const upserts = Object.entries(body)
+    .filter(([key]) => ALLOWED_KEYS.includes(key))
+    .map(([key, value]) => ({
+      key,
+      value: String(value),
+      updated_at: new Date().toISOString(),
+    }))
 
   const { error } = await supabase.from("crm_settings").upsert(upserts)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

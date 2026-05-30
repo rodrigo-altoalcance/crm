@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
-  const { admin_full_name, admin_email, ...companyFields } = await request.json()
+  const { admin_full_name, admin_email, name, monthly_fee, currency, payment_day, max_users, status, email } = await request.json()
 
   if (!admin_email) {
     return NextResponse.json({ error: "El correo del administrador es requerido" }, { status: 400 })
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
 
   const { data: company, error } = await supabase
     .from("companies")
-    .insert(companyFields)
+    .insert({ name, monthly_fee, currency, payment_day, max_users, status, email })
     .select()
     .single()
 

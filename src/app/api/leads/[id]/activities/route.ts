@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { cookies } from "next/headers"
 import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/auth/getProfile"
 
@@ -7,6 +8,14 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const supabase = await createClient()
   const profile = await getProfile(supabase)
   if (!profile) return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+
+  const cookieStore = await cookies()
+  const impersonatedId = cookieStore.get("impersonated_company")?.value
+  const companyId = profile.role === "super_admin" ? impersonatedId : profile.company_id
+  if (!companyId) return NextResponse.json({ error: "No company" }, { status: 403 })
+
+  const { data: lead } = await supabase.from("leads").select("id").eq("id", id).eq("company_id", companyId).single()
+  if (!lead) return NextResponse.json({ error: "Lead no encontrado" }, { status: 404 })
 
   const { data, error } = await supabase
     .from("lead_activities")
@@ -23,6 +32,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const supabase = await createClient()
   const profile = await getProfile(supabase)
   if (!profile) return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+
+  const cookieStore = await cookies()
+  const impersonatedId = cookieStore.get("impersonated_company")?.value
+  const companyId = profile.role === "super_admin" ? impersonatedId : profile.company_id
+  if (!companyId) return NextResponse.json({ error: "No company" }, { status: 403 })
+
+  const { data: lead } = await supabase.from("leads").select("id").eq("id", id).eq("company_id", companyId).single()
+  if (!lead) return NextResponse.json({ error: "Lead no encontrado" }, { status: 404 })
 
   const { description, type = "note_added" } = await request.json()
 

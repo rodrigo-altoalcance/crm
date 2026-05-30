@@ -19,9 +19,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (profile?.role !== "super_admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
   const body = await request.json()
+  const { name, subject, body_html, type, is_default } = body
   const { data, error } = await supabase
     .from("email_templates")
-    .update(body)
+    .update({ name, subject, body_html, type, is_default })
     .eq("id", id)
     .select()
     .single()

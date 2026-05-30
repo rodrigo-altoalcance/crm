@@ -30,6 +30,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const companyId = profile.role === "super_admin" ? impersonatedId : profile.company_id
   if (!companyId) return NextResponse.json({ error: "No company" }, { status: 403 })
 
+  const { data: lead } = await supabase.from("leads").select("id").eq("id", id).eq("company_id", companyId).single()
+  if (!lead) return NextResponse.json({ error: "Lead no encontrado" }, { status: 404 })
+
   const body = await request.json()
   const { title, description, assigned_to, due_date, priority } = body
 

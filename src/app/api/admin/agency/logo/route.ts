@@ -14,7 +14,12 @@ export async function POST(request: Request) {
   const file = formData.get("file") as File | null
   if (!file) return NextResponse.json({ error: "Sin archivo" }, { status: 400 })
 
-  const ext = file.name.split(".").pop() || "png"
+  const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif", "image/svg+xml"]
+  const ALLOWED_EXTS = ["png", "jpg", "jpeg", "webp", "gif", "svg"]
+  const ext = (file.name.split(".").pop() || "").toLowerCase()
+  if (!ALLOWED_TYPES.includes(file.type) || !ALLOWED_EXTS.includes(ext)) {
+    return NextResponse.json({ error: "Tipo de archivo no permitido. Use PNG, JPG, WEBP, GIF o SVG." }, { status: 400 })
+  }
   const path = `logo/agency-logo-${Date.now()}.${ext}`
   const arrayBuffer = await file.arrayBuffer()
   const buffer = new Uint8Array(arrayBuffer)

@@ -15,11 +15,12 @@ export async function PATCH(
   }
 
   const body = await request.json()
+  const { name, color, position, is_final, is_lost } = body
   const admin = createAdminClient()
 
   const { data, error } = await admin
     .from("agency_stages")
-    .update(body)
+    .update({ name, color, position, is_final, is_lost })
     .eq("id", id)
     .select()
     .single()

@@ -7,12 +7,18 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string; leadId: string }> }
 ) {
-  const { leadId } = await params
+  const { id: companyId, leadId } = await params
   const supabase = await createClient()
   const profile = await getProfile(supabase)
   if (profile?.role !== "super_admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
   const admin = createAdminClient()
+
+  const { data: lead } = await admin
+    .from("leads").select("id")
+    .eq("id", leadId).eq("company_id", companyId).single()
+  if (!lead) return NextResponse.json({ error: "Lead no encontrado" }, { status: 404 })
+
   const { data, error } = await admin
     .from("lead_activities")
     .select("*, profile:profiles(full_name, avatar_url)")
@@ -27,13 +33,19 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string; leadId: string }> }
 ) {
-  const { leadId } = await params
+  const { id: companyId, leadId } = await params
   const supabase = await createClient()
   const profile = await getProfile(supabase)
   if (profile?.role !== "super_admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-  const { description, type } = await request.json()
   const admin = createAdminClient()
+
+  const { data: lead } = await admin
+    .from("leads").select("id")
+    .eq("id", leadId).eq("company_id", companyId).single()
+  if (!lead) return NextResponse.json({ error: "Lead no encontrado" }, { status: 404 })
+
+  const { description, type } = await request.json()
 
   const { data, error } = await admin
     .from("lead_activities")

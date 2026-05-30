@@ -19,7 +19,9 @@ export async function POST(request: Request) {
 
   const cookieStore = await cookies()
   cookieStore.set("impersonated_company", company_id, {
-    httpOnly: false,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
     path: "/",
   })
 
@@ -27,6 +29,12 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
+  const supabase = await createClient()
+  const profile = await getProfile(supabase)
+  if (!profile || profile.role !== "super_admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  }
+
   const cookieStore = await cookies()
   cookieStore.delete("impersonated_company")
 

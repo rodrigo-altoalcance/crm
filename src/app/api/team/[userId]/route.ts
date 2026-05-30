@@ -9,13 +9,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ us
   const profile = await getProfile(supabase)
   if (!profile) return NextResponse.json({ error: "No autorizado" }, { status: 401 })
 
-  const cookieStore = await cookies()
-  const impersonatedId = cookieStore.get("impersonated_company")?.value
-  const companyId = profile.role === "super_admin" ? impersonatedId : profile.company_id
-
   if (profile.role !== "company_admin" && profile.role !== "super_admin") {
     return NextResponse.json({ error: "Sin permiso" }, { status: 403 })
   }
+
+  const cookieStore = await cookies()
+  const impersonatedId = cookieStore.get("impersonated_company")?.value
+  const companyId = profile.role === "super_admin" ? impersonatedId : profile.company_id
+  if (!companyId) return NextResponse.json({ error: "No company" }, { status: 403 })
 
   const { permissions } = await request.json()
 
@@ -23,7 +24,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ us
     .from("profiles")
     .update({ permissions })
     .eq("id", userId)
-    .eq("company_id", companyId!)
+    .eq("company_id", companyId)
     .select()
     .single()
 
@@ -41,10 +42,16 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ userId:
     return NextResponse.json({ error: "Sin permiso" }, { status: 403 })
   }
 
+  const cookieStore = await cookies()
+  const impersonatedId = cookieStore.get("impersonated_company")?.value
+  const companyId = profile.role === "super_admin" ? impersonatedId : profile.company_id
+  if (!companyId) return NextResponse.json({ error: "No company" }, { status: 403 })
+
   const { error } = await supabase
     .from("profiles")
     .update({ company_id: null })
     .eq("id", userId)
+    .eq("company_id", companyId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })

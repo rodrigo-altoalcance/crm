@@ -3,13 +3,14 @@ import { updateSession } from "@/lib/supabase/middleware"
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
+  const origin = process.env.NEXT_PUBLIC_SITE_URL || "https://crm.altoalcance.cl"
 
   const { supabase, user, supabaseResponse } = await updateSession(request)
 
   // Unauthenticated: only allow /login and /api/webhook
   if (!user) {
     if (pathname === "/" || pathname.startsWith("/admin") || pathname.startsWith("/dashboard")) {
-      return NextResponse.redirect(new URL("/login", request.url))
+      return NextResponse.redirect(new URL("/login", origin))
     }
     return supabaseResponse
   }
@@ -30,26 +31,26 @@ export async function proxy(request: NextRequest) {
 
   // Root path: redirect based on role
   if (pathname === "/") {
-    if (role === "super_admin") return NextResponse.redirect(new URL("/admin", request.url))
-    return NextResponse.redirect(new URL("/dashboard", request.url))
+    if (role === "super_admin") return NextResponse.redirect(new URL("/admin", origin))
+    return NextResponse.redirect(new URL("/dashboard", origin))
   }
 
   // Login page: authenticated users should not see it
   if (pathname === "/login") {
-    if (role === "super_admin") return NextResponse.redirect(new URL("/admin", request.url))
-    return NextResponse.redirect(new URL("/dashboard", request.url))
+    if (role === "super_admin") return NextResponse.redirect(new URL("/admin", origin))
+    return NextResponse.redirect(new URL("/dashboard", origin))
   }
 
   // Admin: only super_admin allowed
   if (pathname.startsWith("/admin") && role !== "super_admin") {
-    return NextResponse.redirect(new URL("/dashboard", request.url))
+    return NextResponse.redirect(new URL("/dashboard", origin))
   }
 
   // Dashboard: super_admin needs impersonation cookie
   if (pathname.startsWith("/dashboard") && role === "super_admin") {
     const impersonated = request.cookies.get("impersonated_company")
     if (!impersonated) {
-      return NextResponse.redirect(new URL("/admin", request.url))
+      return NextResponse.redirect(new URL("/admin", origin))
     }
   }
 

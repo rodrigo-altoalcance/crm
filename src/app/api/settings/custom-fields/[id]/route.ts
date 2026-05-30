@@ -21,9 +21,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (error || !companyId) return NextResponse.json({ error }, { status })
 
   const body = await request.json()
+  const { nombre, tipo, obligatorio, orden } = body
   const { data, error: dbError } = await supabase
     .from("custom_lead_fields")
-    .update(body)
+    .update({ nombre, tipo, obligatorio, orden })
     .eq("id", id)
     .eq("context", "company")
     .eq("company_id", companyId)

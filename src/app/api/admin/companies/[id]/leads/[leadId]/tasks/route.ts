@@ -33,8 +33,14 @@ export async function POST(
   const profile = await getProfile(supabase)
   if (profile?.role !== "super_admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
-  const { title, description, assigned_to, due_date, priority } = await request.json()
   const admin = createAdminClient()
+
+  const { data: lead } = await admin
+    .from("leads").select("id")
+    .eq("id", leadId).eq("company_id", companyId).single()
+  if (!lead) return NextResponse.json({ error: "Lead no encontrado" }, { status: 404 })
+
+  const { title, description, assigned_to, due_date, priority } = await request.json()
 
   const { data, error } = await admin
     .from("tasks")

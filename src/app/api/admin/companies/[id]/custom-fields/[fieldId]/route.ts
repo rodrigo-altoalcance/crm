@@ -13,10 +13,11 @@ export async function PATCH(
   if (!profile || profile.role !== "super_admin") return NextResponse.json({ error: "No autorizado" }, { status: 403 })
 
   const body = await request.json()
+  const { nombre, tipo, obligatorio, orden } = body
   const admin = createAdminClient()
   const { data, error } = await admin
     .from("custom_lead_fields")
-    .update(body)
+    .update({ nombre, tipo, obligatorio, orden })
     .eq("id", fieldId)
     .eq("context", "company")
     .eq("company_id", companyId)

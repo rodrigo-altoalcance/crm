@@ -20,9 +20,10 @@ export async function PATCH(
   if (!companyId) return NextResponse.json({ error: "No company" }, { status: 403 })
 
   const body = await request.json()
+  const { name, label, type, options, required, position } = body
   const { data, error } = await supabase
     .from("lead_field_definitions")
-    .update(body)
+    .update({ name, label, type, options, required, position })
     .eq("id", id)
     .eq("company_id", companyId)
     .select()
