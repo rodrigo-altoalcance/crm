@@ -25,7 +25,7 @@ export default async function TasksPage() {
 
   let query = supabase
     .from("tasks")
-    .select("*, assigned_profile:profiles!assigned_to(id, full_name, avatar_url), lead:leads(id, first_name, last_name)")
+    .select("*, assigned_profile:profiles!assigned_to(id, full_name, avatar_url), lead:leads(id, first_name, last_name, phone, email)")
     .eq("company_id", companyId)
     .order("created_at", { ascending: false })
 
@@ -36,15 +36,38 @@ export default async function TasksPage() {
 
   const { data: tasks } = await query
 
+  // Load last comment per lead
+  const leadIds = (tasks || []).filter((t) => t.lead_id).map((t) => t.lead_id as string)
+  const lastCommentMap: Record<string, string> = {}
+  if (leadIds.length > 0) {
+    const { data: recentActivities } = await supabase
+      .from("lead_activities")
+      .select("lead_id, description, created_at")
+      .in("lead_id", leadIds)
+      .in("type", ["stage_changed", "lead_closed", "note_added", "comment", "task_completed"])
+      .not("description", "is", null)
+      .order("created_at", { ascending: false })
+    for (const act of recentActivities || []) {
+      if (act.lead_id && !(act.lead_id in lastCommentMap) && act.description) {
+        lastCommentMap[act.lead_id] = act.description
+      }
+    }
+  }
+
+  const tasksWithExtra = (tasks || []).map((t) => ({
+    ...t,
+    lead: t.lead ? { ...(t.lead as any), last_comment: lastCommentMap[t.lead_id!] ?? null } : t.lead,
+  }))
+
   return (
     <div className="p-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-slate-900">Mis tareas</h1>
-        <p className="text-sm text-slate-500 mt-1">{tasks?.length || 0} tarea{(tasks?.length || 0) !== 1 ? "s" : ""} en total</p>
+        <p className="text-sm text-slate-500 mt-1">{tasksWithExtra.length} tarea{tasksWithExtra.length !== 1 ? "s" : ""} en total</p>
       </div>
 
       <TasksView
-        tasks={tasks || []}
+        tasks={tasksWithExtra as any}
         teamMembers={teamMembers || []}
         companyId={companyId}
         tasksApiPrefix="/api"

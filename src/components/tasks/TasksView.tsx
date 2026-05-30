@@ -108,19 +108,30 @@ export function TasksView({ tasks, teamMembers, companyId, tasksApiPrefix = "/ap
               <button
                 key={task.id}
                 onClick={() => setSelectedTask(task)}
-                className="w-full grid grid-cols-[1fr_200px_160px_120px_110px] gap-4 px-4 py-3 border-b last:border-0 hover:bg-slate-50 transition-colors text-left items-center"
+                className="w-full grid grid-cols-[1fr_200px_160px_120px_110px] gap-4 px-4 py-3 border-b last:border-0 hover:bg-slate-50 transition-colors text-left items-start"
               >
-                <div className="min-w-0">
+                <div className="min-w-0 pt-0.5">
                   <p className="text-sm font-medium text-slate-800 truncate">{task.title}</p>
                   <PriorityBadge priority={task.priority} />
                 </div>
 
-                <div className="min-w-0">
+                <div className="min-w-0 space-y-0.5">
                   {task.lead ? (
-                    <span className="flex items-center gap-1 text-xs text-slate-500 truncate">
-                      <LinkIcon className="w-3 h-3 flex-shrink-0" />
-                      {task.lead.first_name} {task.lead.last_name}
-                    </span>
+                    <>
+                      <span className="flex items-center gap-1 text-xs text-slate-700 font-medium truncate">
+                        <LinkIcon className="w-3 h-3 flex-shrink-0 text-slate-400" />
+                        {task.lead.first_name} {task.lead.last_name}
+                      </span>
+                      {task.lead.phone && (
+                        <p className="text-xs text-slate-500 truncate pl-4">{task.lead.phone}</p>
+                      )}
+                      {task.lead.email && (
+                        <p className="text-xs text-slate-400 truncate pl-4">{task.lead.email}</p>
+                      )}
+                      {task.lead.last_comment && (
+                        <p className="text-xs text-slate-400 line-clamp-2 pl-4 italic">{task.lead.last_comment}</p>
+                      )}
+                    </>
                   ) : (
                     <span className="text-xs text-slate-400">—</span>
                   )}
