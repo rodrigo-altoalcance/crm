@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { PriorityBadge } from "@/components/shared/PriorityBadge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Calendar, Link as LinkIcon, MessageSquare, Pencil, X } from "lucide-react"
+import { Calendar, Link as LinkIcon, Mail, MessageSquare, Pencil, Phone, X } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 import type { Task, TaskComment, Profile } from "@/types/database"
 
@@ -286,6 +286,33 @@ export function TaskDetailModal({
             </form>
           )}
 
+          {/* Lead contact info */}
+          {task.lead && ((task as any).lead?.phone || (task as any).lead?.email || (task as any).lead?.last_comment) && (
+            <div className="space-y-2 border rounded-lg p-3 bg-slate-50">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Lead asociado</p>
+              <div className="space-y-1">
+                {(task as any).lead?.phone && (
+                  <p className="text-sm text-slate-600 flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                    {(task as any).lead.phone}
+                  </p>
+                )}
+                {(task as any).lead?.email && (
+                  <p className="text-sm text-slate-600 flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                    {(task as any).lead.email}
+                  </p>
+                )}
+                {(task as any).lead?.last_comment && (
+                  <p className="text-sm text-slate-600 flex items-start gap-1.5">
+                    <MessageSquare className="w-3.5 h-3.5 text-slate-400 flex-shrink-0 mt-0.5" />
+                    <span className="line-clamp-3 italic">{(task as any).lead.last_comment}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Task description */}
           {task.description && (
             <div className="space-y-1">
@@ -379,18 +406,20 @@ export function TaskDetailModal({
               </div>
             )}
 
-            <form onSubmit={handleAddComment} className="space-y-2">
-              <Textarea
-                placeholder="Agregar un comentario libre..."
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                rows={2}
-                disabled={savingComment}
-              />
-              <Button type="submit" size="sm" disabled={savingComment || !newComment.trim()}>
-                {savingComment ? "Guardando..." : "Agregar comentario"}
-              </Button>
-            </form>
+            {!pendingStatus && (
+              <form onSubmit={handleAddComment} className="space-y-2">
+                <Textarea
+                  placeholder="Agregar un comentario libre..."
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  rows={2}
+                  disabled={savingComment}
+                />
+                <Button type="submit" size="sm" disabled={savingComment || !newComment.trim()}>
+                  {savingComment ? "Guardando..." : "Agregar comentario"}
+                </Button>
+              </form>
+            )}
           </div>
         </div>
       </DialogContent>

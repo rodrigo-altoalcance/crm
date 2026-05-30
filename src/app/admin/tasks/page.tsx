@@ -15,10 +15,28 @@ export default async function AdminTasksPage() {
   const [{ data: rawTasks }, { data: teamMembers }] = await Promise.all([
     admin
       .from("agency_tasks")
-      .select("*, assigned_profile:profiles!assigned_to(id, full_name, avatar_url), lead:agency_leads(id, first_name, last_name)")
+      .select("*, assigned_profile:profiles!assigned_to(id, full_name, avatar_url), lead:agency_leads(id, first_name, last_name, phone, email)")
       .order("created_at", { ascending: false }),
     supabase.from("profiles").select("id, full_name, avatar_url, role, permissions, phone, company_id, created_at").eq("role", "super_admin"),
   ])
+
+  // Load last comment per lead
+  const leadIds = (rawTasks || []).filter((t) => t.lead_id).map((t) => t.lead_id as string)
+  const lastCommentMap: Record<string, string> = {}
+  if (leadIds.length > 0) {
+    const { data: recentActivities } = await admin
+      .from("agency_lead_activities")
+      .select("lead_id, description, created_at")
+      .in("lead_id", leadIds)
+      .in("type", ["stage_changed", "lead_closed", "note_added", "comment", "task_completed"])
+      .not("description", "is", null)
+      .order("created_at", { ascending: false })
+    for (const act of recentActivities || []) {
+      if (act.lead_id && !(act.lead_id in lastCommentMap) && act.description) {
+        lastCommentMap[act.lead_id] = act.description
+      }
+    }
+  }
 
   const tasks: Task[] = (rawTasks || []).map((t) => ({
     id: t.id,
@@ -33,7 +51,7 @@ export default async function AdminTasksPage() {
     created_by: t.created_by ?? profile.id,
     created_at: t.created_at,
     assigned_profile: t.assigned_profile ?? undefined,
-    lead: t.lead ?? undefined,
+    lead: t.lead ? { ...(t.lead as any), last_comment: lastCommentMap[t.lead_id ?? ""] ?? null } : undefined,
   }))
 
   return (
