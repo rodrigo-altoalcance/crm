@@ -380,11 +380,56 @@ for (const v of fieldValueRows || []) initialFieldValues[v.field_id] = v.valor ?
 - El PATCH de edición inline llama a `${apiPrefix}/leads/${lead.id}` con `{ scheduled_at: isoString | null }`
 - Contexto admin agencia: API route `PATCH /api/admin/agency/leads/[id]` — usa `createAdminClient()`, bypasea RLS
 
-## Módulo "Mis tareas" (`/dashboard/tasks`)
+## Módulo "Mis tareas" (`/dashboard/tasks`) y Tareas de Agencia (`/admin/tasks`)
 
-- Label en sidebar y h1 de página: **"Mis tareas"** (no "Tareas")
+- Label en sidebar y h1 de página dashboard: **"Mis tareas"** (no "Tareas")
 - El botón "Nueva tarea" fue eliminado de `TasksView` — la creación de tareas solo se hace desde el detalle de un lead
 - `TasksView` sigue mostrando el modal de detalle al hacer clic en una tarea existente
+
+### Datos enriquecidos del lead en tareas
+
+La columna "Lead" de `TasksView` y la sección "Lead asociado" de `TaskDetailModal` muestran:
+- Nombre del lead (siempre)
+- Teléfono (`phone`)
+- Email (`email`)
+- Último comentario del historial (`last_comment`, `line-clamp-2` en lista, `line-clamp-3` en modal)
+
+**Cómo cargar estos datos en el `page.tsx`** (aplica igual para dashboard y admin agencia, cambiando las tablas):
+```typescript
+// 1. Incluir phone y email en el join del lead
+.select("*, assigned_profile:profiles!assigned_to(id, full_name, avatar_url), lead:leads(id, first_name, last_name, phone, email)")
+
+// 2. Query separada para el último comentario por lead
+const leadIds = (tasks || []).filter((t) => t.lead_id).map((t) => t.lead_id as string)
+const lastCommentMap: Record<string, string> = {}
+if (leadIds.length > 0) {
+  const { data: recentActivities } = await supabase
+    .from("lead_activities")               // admin agencia: agency_lead_activities
+    .select("lead_id, description, created_at")
+    .in("lead_id", leadIds)
+    .in("type", ["stage_changed", "lead_closed", "note_added", "comment", "task_completed"])
+    .not("description", "is", null)
+    .order("created_at", { ascending: false })
+  for (const act of recentActivities || []) {
+    if (act.lead_id && !(act.lead_id in lastCommentMap) && act.description) {
+      lastCommentMap[act.lead_id] = act.description
+    }
+  }
+}
+
+// 3. Adjuntar last_comment a cada tarea
+const tasksWithExtra = (tasks || []).map((t) => ({
+  ...t,
+  lead: t.lead ? { ...(t.lead as any), last_comment: lastCommentMap[t.lead_id!] ?? null } : t.lead,
+}))
+```
+Los datos se acceden como `(task as any).lead.phone` / `.email` / `.last_comment` en los componentes.
+
+### `TaskDetailModal` — un solo textarea a la vez
+
+- Cuando el usuario selecciona un estado diferente al actual (`pendingStatus !== null`), el formulario de "Agregar comentario libre" se **oculta** — solo permanece visible el textarea de "Comenta qué hiciste...".
+- Una vez guardado o cancelado el cambio de estado, el textarea de comentario libre vuelve a aparecer.
+- Implementado con `{!pendingStatus && (<form onSubmit={handleAddComment}>...)}` alrededor del formulario libre.
 
 ## Kanban — popup de mover lead
 
@@ -475,6 +520,22 @@ async function saveField() {
   }
 }
 ```
+
+## Patrón crítico — `formatDate` con strings de fecha sin hora (YYYY-MM-DD)
+
+`new Date("2026-06-10")` crea medianoche UTC. En Chile (UTC-3/UTC-4) esto se muestra como el día anterior. La función `formatDate` en `src/lib/utils.ts` ya maneja este caso: si el string es exactamente `YYYY-MM-DD`, lo parsea como fecha local usando `new Date(year, month-1, day)` para evitar el desfase.
+
+```typescript
+// ✅ formatDate ya corregido — no hacer conversión manual antes de llamarlo
+formatDate("2026-06-10") // → "10 jun. 2026" (correcto en cualquier timezone)
+
+// ❌ NO hacer esto antes de pasar una fecha a la API
+new Date(form.due_date).toISOString() // convierte a UTC → llega un día antes al servidor
+// ✅ Enviar el string YYYY-MM-DD directamente — la columna `date` de Postgres lo acepta tal cual
+body: JSON.stringify({ due_date: form.due_date || null })
+```
+
+Esta regla aplica a `tasks.due_date`, `agency_tasks.due_date`, y cualquier otra columna de tipo `date` (no `timestamptz`).
 
 ## Patrón crítico — createClient() en componentes "use client"
 
