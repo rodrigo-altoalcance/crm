@@ -77,6 +77,11 @@ export function LoginForm() {
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Ingresando..." : "Ingresar"}
           </Button>
+          <div className="text-center">
+            <a href="/recuperar-contrasena" className="text-sm text-indigo-600 hover:text-indigo-700">
+              ¿Olvidaste tu contraseña?
+            </a>
+          </div>
         </form>
       </CardContent>
     </Card>
