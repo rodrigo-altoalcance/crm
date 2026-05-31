@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
-import { formatDate, formatScheduledAt } from "@/lib/utils"
+import { formatDate, formatDateTime, formatScheduledAt } from "@/lib/utils"
 import type { Lead, LeadStage, Profile, CustomLeadField } from "@/types/database"
 
 interface LeadsTableProps {
@@ -143,7 +143,7 @@ export function LeadsTable({
                     )}
                   </TableCell>
                   <TableCell>
-                    <span className="text-sm text-slate-500">{formatDate(lead.created_at)}</span>
+                    <span className="text-sm text-slate-500">{formatDateTime(lead.created_at)}</span>
                   </TableCell>
                   {visibleCustomFields.map((f) => (
                     <TableCell key={f.id}>

@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { CloseLeadConfirmDialog } from "./CloseLeadConfirmDialog"
-import { formatDate, formatScheduledAt } from "@/lib/utils"
+import { formatDate, formatDateTime, formatScheduledAt } from "@/lib/utils"
 import { Mail, Phone, MessageSquare, Calendar, Pencil, X, Check } from "lucide-react"
 import type { Lead, LeadStage, Profile, CustomLeadField } from "@/types/database"
 import { canCloseLead } from "@/lib/auth/roles"
@@ -197,7 +197,7 @@ export function LeadDetailPanel({ lead, stages, teamMembers, profile, apiPrefix 
                 </div>
               )}
               <div className="flex items-center gap-2 text-sm text-slate-600">
-                <Calendar className="w-4 h-4 text-slate-400" /> {formatDate(lead.created_at)}
+                <Calendar className="w-4 h-4 text-slate-400" /> {formatDateTime(lead.created_at)}
               </div>
 
               <div className="space-y-1">
