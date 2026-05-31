@@ -23,7 +23,9 @@
 src/
 ├── proxy.ts                    # Auth routing (Next.js 16: proxy en vez de middleware)
 ├── app/
-│   ├── (auth)/login/           # Login público
+│   ├── (auth)/login/                    # Login público
+│   ├── (auth)/recuperar-contrasena/     # Solicitar link de recuperación (email)
+│   ├── (auth)/nueva-contrasena/         # Establecer nueva contraseña (token Supabase)
 │   ├── admin/                  # Panel super_admin
 │   │   ├── companies/          # CRUD usuario empresa + pagos + usuarios + pipeline + equipo
 │   │   │   └── [id]/leads/     # Pipeline (Kanban+tabla) de la empresa — acceso directo sin impersonar
@@ -329,6 +331,18 @@ PATCH/DELETE /api/admin/companies/[id]/team/[userId] → editar permisos / elimi
 - **Impersonación**: `POST /api/admin/impersonate` → cookie `impersonated_company` → super_admin ve el portal de la empresa
 - **Webhook Make.com**: `POST /api/webhook/leads/[token]` (público) → mapea campos via `field_mapping` del token → asigna lead a primera etapa del pipeline
 - **Pagos**: solo super_admin puede ver/crear pagos — RLS lo bloquea para otros roles
+
+## Recuperación de contraseña
+
+Flujo completo implementado con Supabase Auth:
+
+1. Link "¿Olvidaste tu contraseña?" en `LoginForm.tsx` → `/recuperar-contrasena`
+2. `/recuperar-contrasena` — el usuario ingresa su email → llama `supabase.auth.resetPasswordForEmail(email, { redirectTo: origin + "/nueva-contrasena" })` → Supabase envía email con link
+3. `/nueva-contrasena` — detecta el token via `onAuthStateChange("PASSWORD_RECOVERY")` → usuario ingresa nueva contraseña → llama `supabase.auth.updateUser({ password })`
+
+**Configuración requerida en Supabase:** agregar `https://crm.altoalcance.cl/nueva-contrasena` en **Authentication → URL Configuration → Redirect URLs**.
+
+Ambas rutas son accesibles sin autenticación — el `proxy.ts` solo bloquea `/`, `/admin/*` y `/dashboard/*` para usuarios no autenticados.
 
 ## Gestión de usuarios — ciclo de vida y BD
 
