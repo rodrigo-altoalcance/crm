@@ -247,3 +247,16 @@ export interface AgencyLead {
   scheduled_at: string | null
   created_at: string
 }
+
+export type NotificationType = "task_assigned" | "task_due"
+
+export interface Notification {
+  id: string
+  user_id: string
+  type: NotificationType
+  title: string
+  body: string | null
+  related_task_id: string | null
+  read_at: string | null
+  created_at: string
+}

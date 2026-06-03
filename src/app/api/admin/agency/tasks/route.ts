@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getProfile } from "@/lib/auth/getProfile"
 
+
 export async function GET(request: Request) {
   const supabase = await createClient()
   const profile = await getProfile(supabase)
@@ -56,5 +57,14 @@ export async function POST(request: Request) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  if (assigned_to && assigned_to !== profile.id) {
+    await admin.from("notifications").insert({
+      user_id: assigned_to,
+      type: "task_assigned",
+      title: `Te asignaron una tarea: ${title}`,
+    })
+  }
+
   return NextResponse.json(data, { status: 201 })
 }

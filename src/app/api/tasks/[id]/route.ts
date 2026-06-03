@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { getProfile } from "@/lib/auth/getProfile"
 
 export async function PATCH(
@@ -20,7 +21,7 @@ export async function PATCH(
   // Build query: super_admin without impersonation can access any task
   let existingQuery = supabase
     .from("tasks")
-    .select("id, lead_id, title, status")
+    .select("id, lead_id, title, status, assigned_to")
     .eq("id", id)
   if (companyId) existingQuery = existingQuery.eq("company_id", companyId)
 
@@ -47,6 +48,22 @@ export async function PATCH(
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Notificar cuando cambia el responsable
+  if (
+    assigned_to !== undefined &&
+    assigned_to !== null &&
+    assigned_to !== existing.assigned_to &&
+    assigned_to !== profile.id
+  ) {
+    const adminClient = createAdminClient()
+    await adminClient.from("notifications").insert({
+      user_id: assigned_to,
+      type: "task_assigned",
+      title: `Te asignaron una tarea: ${data.title ?? existing.title}`,
+      related_task_id: id,
+    })
+  }
 
   // When task is marked completed and linked to a lead, auto-generate history entry
   if (status === "completed" && existing.status !== "completed" && existing.lead_id) {
