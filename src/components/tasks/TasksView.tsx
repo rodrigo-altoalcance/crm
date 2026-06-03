@@ -29,23 +29,14 @@ interface TasksViewProps {
   tasksApiPrefix?: string
 }
 
-export function TasksView({ tasks, teamMembers, companyId, tasksApiPrefix = "/api" }: TasksViewProps) {
+export function TasksView({ tasks, teamMembers, tasksApiPrefix = "/api" }: TasksViewProps) {
   const router = useRouter()
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
-  const [activeStatuses, setActiveStatuses] = useState<StatusFilter[]>(["pending", "in_progress"])
+  const [activeStatus, setActiveStatus] = useState<StatusFilter>("pending")
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all")
 
-  function toggleStatus(s: StatusFilter) {
-    setActiveStatuses((prev) =>
-      prev.includes(s)
-        ? prev.length === 1 ? prev // keep at least one active
-          : prev.filter((x) => x !== s)
-        : [...prev, s]
-    )
-  }
-
   const filtered = tasks.filter((t) => {
-    if (!activeStatuses.includes(t.status as StatusFilter)) return false
+    if (t.status !== activeStatus) return false
     if (assigneeFilter !== "all" && (t as any).assigned_profile?.id !== assigneeFilter && t.assigned_to !== assigneeFilter) return false
     return true
   })
@@ -53,15 +44,15 @@ export function TasksView({ tasks, teamMembers, companyId, tasksApiPrefix = "/ap
   return (
     <>
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5">
-        {/* Status filter chips */}
+        {/* Status filter chips (radio) */}
         <div className="flex items-center gap-2 flex-wrap">
           {(["pending", "in_progress", "completed"] as StatusFilter[]).map((s) => {
             const sc = statusConfig[s]
-            const active = activeStatuses.includes(s)
+            const active = activeStatus === s
             return (
               <button
                 key={s}
-                onClick={() => toggleStatus(s)}
+                onClick={() => setActiveStatus(s)}
                 className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
                   active ? sc.className : "bg-white text-slate-400 border-slate-200 hover:border-slate-300"
                 }`}

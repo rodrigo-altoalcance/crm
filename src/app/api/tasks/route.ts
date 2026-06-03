@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { getProfile } from "@/lib/auth/getProfile"
 import { canViewAllLeads } from "@/lib/auth/roles"
 
@@ -70,5 +71,16 @@ export async function POST(request: Request) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  if (assigned_to && assigned_to !== profile.id) {
+    const admin = createAdminClient()
+    await admin.from("notifications").insert({
+      user_id: assigned_to,
+      type: "task_assigned",
+      title: `Te asignaron una tarea: ${title}`,
+      related_task_id: data.id,
+    })
+  }
+
   return NextResponse.json(data, { status: 201 })
 }

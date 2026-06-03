@@ -18,7 +18,7 @@ export async function PATCH(
 
   const { data: existing } = await admin
     .from("agency_tasks")
-    .select("id, lead_id, title, status")
+    .select("id, lead_id, title, status, assigned_to")
     .eq("id", id)
     .single()
 
@@ -43,6 +43,20 @@ export async function PATCH(
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Notificar cuando cambia el responsable
+  if (
+    assigned_to !== undefined &&
+    assigned_to !== null &&
+    assigned_to !== existing.assigned_to &&
+    assigned_to !== profile.id
+  ) {
+    await admin.from("notifications").insert({
+      user_id: assigned_to,
+      type: "task_assigned",
+      title: `Te asignaron una tarea: ${data.title ?? existing.title}`,
+    })
+  }
 
   // When task is marked completed and linked to a lead, auto-generate history entry
   if (status === "completed" && existing.status !== "completed" && existing.lead_id) {

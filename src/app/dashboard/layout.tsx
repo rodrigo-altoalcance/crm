@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/auth/getProfile"
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar"
 import { ImpersonationBanner } from "@/components/dashboard/ImpersonationBanner"
+import { TopBar } from "@/components/shared/TopBar"
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -38,6 +39,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <DashboardSidebar companyName={companyName} isImpersonating={isImpersonating} />
       <div className="flex-1 flex flex-col overflow-auto">
         {isImpersonating && <ImpersonationBanner companyName={companyName} />}
+        <TopBar userName={profile.full_name} />
         <main className="flex-1">{children}</main>
       </div>
     </div>

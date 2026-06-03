@@ -57,5 +57,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     description: `Tarea creada: "${title}" por ${profile.full_name}`,
   })
 
+  if (assigned_to && assigned_to !== profile.id) {
+    await admin.from("notifications").insert({
+      user_id: assigned_to,
+      type: "task_assigned",
+      title: `Te asignaron una tarea: ${title}`,
+    })
+  }
+
   return NextResponse.json(task, { status: 201 })
 }
