@@ -62,6 +62,10 @@ src/
 │       │   └── column-preferences/  # Preferencias columnas por usuario
 │       ├── webhook/leads/[token]/   # Público — Make.com (empresa)
 │       ├── webhook/agency/[token]/  # Público — Make.com (agencia)
+│       ├── notifications/       # GET lista, PATCH read, PATCH read-all
+│       │   └── [id]/read/
+│       ├── cron/
+│       │   └── task-due-notifications/  # POST — cron Vercel (requiere CRON_SECRET)
 │       ├── team/, tasks/, stages/
 │       └── admin/test-email/   # POST — prueba de envío (solo super_admin)
 ├── components/
@@ -72,7 +76,7 @@ src/
 │   ├── clients/                # ClientsTable, ClientRecordsPanel
 │   ├── tasks/, team/           # TeamView acepta apiPrefix + permissionsBasePath
 │   ├── settings/               # WebhookConfig, FieldMappingEditor, CustomLeadFieldsEditor, StagesEditor, OrganizationForm, FieldsEditor
-│   └── shared/                 # EmptyState, ConfirmDialog, StatusBadge, PriorityBadge
+│   └── shared/                 # EmptyState, ConfirmDialog, StatusBadge, PriorityBadge, TopBar, NotificationBell
 └── lib/
     ├── supabase/{client,server,admin,middleware}.ts
     ├── auth/{getProfile,roles}.ts
@@ -252,6 +256,7 @@ agency_leads                 id, stage_id, first_name, last_name, email, phone, 
 agency_stages                id, name, color, position, is_final, is_lost
 agency_lead_activities       id, lead_id, user_id, type, description, metadata(jsonb)
 agency_tasks                 id, lead_id, title, priority, status, assigned_to, due_date
+notifications                id, user_id(FK→auth.users CASCADE), type('task_assigned'|'task_due'), title, body, related_task_id(UUID soft ref), read_at(timestamptz), created_at
 custom_lead_fields           id, context('agency'|'company'), company_id(null si agencia), nombre, tipo('texto'|'numero'|'fecha'), obligatorio, orden, created_at
 custom_lead_field_values     id, field_id(FK→custom_lead_fields), lead_id(UUID sin FK), valor, created_at
 user_lead_column_preferences id, user_id, context, company_id, column_key, visible, created_at
@@ -520,6 +525,7 @@ for (const v of fieldValueRows || []) initialFieldValues[v.field_id] = v.valor ?
 - Label en sidebar y h1 de página dashboard: **"Mis tareas"** (no "Tareas")
 - El botón "Nueva tarea" fue eliminado de `TasksView` — la creación de tareas solo se hace desde el detalle de un lead
 - `TasksView` sigue mostrando el modal de detalle al hacer clic en una tarea existente
+- El filtro de estado es **radio** (un estado a la vez), default `"pending"` — no multi-select
 
 ### Datos enriquecidos del lead en tareas
 
@@ -701,8 +707,52 @@ Archivos afectados y corregidos: `LoginForm.tsx`, `AdminSidebar.tsx`, `Dashboard
 | 005 | Template email invitación |
 | 006 | task_comments |
 | 007 | scheduled_at en leads y agency_leads |
-| 008 | custom_lead_fields + custom_lead_field_values |
-| 009 | user_lead_column_preferences |
+| 008 | custom_lead_fields + custom_lead_field_values + user_lead_column_preferences |
+| 009 | notifications |
+
+## Sistema de notificaciones in-app
+
+### TopBar
+- Componente servidor en `src/components/shared/TopBar.tsx` — recibe `userName: string`
+- Renderiza: nombre del usuario (con ícono), botón cerrar sesión, `<NotificationBell />`
+- Integrado en `src/app/admin/layout.tsx` y `src/app/dashboard/layout.tsx` — ambos pasan `profile.full_name`
+
+### NotificationBell
+- `src/components/shared/NotificationBell.tsx` — componente client
+- Hace polling a `GET /api/notifications` cada 60 segundos
+- Badge rojo con contador de no-leídas (máx. "99+")
+- Dropdown con últimas 20 notificaciones: click en una no-leída → marca como leída (PATCH individual)
+- Botón "Marcar todas como leídas" → `PATCH /api/notifications/read-all`
+- Cierra al hacer click fuera (ref + `mousedown` listener)
+- **Colores**: no-leída → `bg-slate-50` + texto `text-slate-800 font-medium` + ícono `text-indigo-500` + dot azul; leída → `bg-white` + texto `text-slate-400` + ícono `text-slate-300`
+
+### APIs
+```
+GET  /api/notifications            → últimas 20 del usuario autenticado, orden desc
+PATCH /api/notifications/[id]/read → marca una notificación como leída (solo la propia)
+PATCH /api/notifications/read-all  → marca todas las no-leídas del usuario
+```
+- Todas usan `createClient()` + `getProfile()` — la RLS de Supabase refuerza que solo el dueño accede
+
+### Cuándo se crean notificaciones
+Las notificaciones se insertan via `createAdminClient()` (bypasea RLS) en los siguientes endpoints, condición: `assigned_to` existe y es distinto al usuario que realiza la acción:
+
+| Endpoint | Tipo | Cuándo |
+|----------|------|--------|
+| `POST /api/tasks` | `task_assigned` | Nueva tarea con responsable |
+| `PATCH /api/tasks/[id]` | `task_assigned` | Cambio de responsable |
+| `POST /api/leads/[id]/tasks` | `task_assigned` | Tarea desde detalle de lead |
+| `POST /api/admin/agency/tasks` | `task_assigned` | Nueva tarea de agencia |
+| `PATCH /api/admin/agency/tasks/[id]` | `task_assigned` | Cambio de responsable (agencia) |
+| `POST /api/admin/agency/leads/[id]/tasks` | `task_assigned` | Tarea desde lead de agencia |
+
+### Cron de vencimiento diario
+- Ruta: `POST /api/cron/task-due-notifications`
+- Autorización: header `Authorization: Bearer ${CRON_SECRET}` (variable de entorno en Vercel)
+- Configurado en `vercel.json` → schedule `"0 9 * * *"` (9:00 AM UTC = 6:00 AM Chile)
+- Recorre `tasks` y `agency_tasks` con `due_date = hoy` y `status != completed` y `assigned_to != null`
+- Inserta notificación `task_due` solo si no existe una igual en las últimas 24 h (dedup)
+- `CRON_SECRET` debe agregarse en Vercel → Settings → Environment Variables
 
 ## Convenciones UI
 - Sidebar oscuro (`#0F172A`), accent `#6366F1` (indigo-500), fondo `#F8FAFC`
