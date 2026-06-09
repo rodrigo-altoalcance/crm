@@ -78,7 +78,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   // Parse fecha_agenda → scheduled_at so it appears in the lead detail UI
   let scheduledAt: string | null = null
   if (customFields.fecha_agenda) {
-    const d = new Date(customFields.fecha_agenda)
+    const raw = customFields.fecha_agenda
+    let d = new Date(raw)
+    if (isNaN(d.getTime())) {
+      // Fallback: DD-MM-YYYY HH:mm (Make formatDate output)
+      const m = raw.match(/^(\d{1,2})-(\d{1,2})-(\d{4})\s+(\d{1,2}):(\d{2})$/)
+      if (m) {
+        const [, dd, mm, yyyy, hh, min] = m
+        d = new Date(`${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}T${hh.padStart(2, "0")}:${min}:00`)
+      }
+    }
     if (!isNaN(d.getTime())) scheduledAt = d.toISOString()
   }
 
