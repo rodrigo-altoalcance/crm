@@ -75,6 +75,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     customFields.fecha_registro = String(mapped.fecha_registro || rawBody.fecha_registro || "")
   }
 
+  // Parse fecha_agenda → scheduled_at so it appears in the lead detail UI
+  let scheduledAt: string | null = null
+  if (customFields.fecha_agenda) {
+    const d = new Date(customFields.fecha_agenda)
+    if (!isNaN(d.getTime())) scheduledAt = d.toISOString()
+  }
+
   if (!email && !firstName) {
     return NextResponse.json({ error: "Se requiere email o nombre" }, { status: 400 })
   }
@@ -99,6 +106,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
       message: message || null,
       source: ["meta", "calendly", "manual"].includes(source) ? source : "meta",
       custom_fields: customFields,
+      scheduled_at: scheduledAt,
     })
     .select()
     .single()
