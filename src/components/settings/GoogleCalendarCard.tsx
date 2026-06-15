@@ -71,9 +71,14 @@ export function GoogleCalendarCard({ returnTo }: GoogleCalendarCardProps) {
     setLoadingCalendars(true)
     try {
       const res = await fetch("/api/auth/google-calendar/calendars")
-      if (res.ok) setCalendars(await res.json())
-    } catch {
-      // ignore
+      if (res.ok) {
+        setCalendars(await res.json())
+      } else {
+        const err = await res.json().catch(() => ({}))
+        toast.error(`Error al cargar calendarios: ${err.error ?? res.status}`)
+      }
+    } catch (e) {
+      toast.error("Error de red al cargar calendarios")
     } finally {
       setLoadingCalendars(false)
     }
