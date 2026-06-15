@@ -3,7 +3,10 @@ import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/auth/getProfile"
 
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
-const SCOPES = ["https://www.googleapis.com/auth/calendar.events"]
+const SCOPES = [
+  "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/calendar.readonly",
+]
 
 export async function GET(request: Request) {
   const supabase = await createClient()
