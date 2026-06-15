@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PriorityBadge } from "@/components/shared/PriorityBadge"
 import { TaskDetailModal } from "@/components/tasks/TaskDetailModal"
 import { formatScheduledAt } from "@/lib/utils"
+import { DateTimePicker } from "@/components/ui/datetime-picker"
 import { Plus, CheckSquare, Calendar, AlertTriangle } from "lucide-react"
 import type { Task, Profile } from "@/types/database"
 
@@ -185,12 +186,10 @@ export function LeadTasksPanel({
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="due-date">Fecha y hora límite</Label>
-                  <Input
-                    id="due-date"
-                    type="datetime-local"
+                  <Label>Fecha y hora límite</Label>
+                  <DateTimePicker
                     value={form.due_date}
-                    onChange={(e) => set("due_date", e.target.value)}
+                    onChange={(iso) => set("due_date", iso)}
                   />
                 </div>
               </div>

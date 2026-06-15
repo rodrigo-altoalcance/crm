@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { PriorityBadge } from "@/components/shared/PriorityBadge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Calendar, Link as LinkIcon, Mail, MessageSquare, Pencil, Phone, X } from "lucide-react"
+import { DateTimePicker } from "@/components/ui/datetime-picker"
 import { formatScheduledAt } from "@/lib/utils"
 import type { Task, TaskComment, Profile } from "@/types/database"
 
@@ -253,12 +254,10 @@ export function TaskDetailModal({
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <label className="text-xs text-slate-600">Fecha límite</label>
-                  <Input
-                    type="datetime-local"
+                  <DateTimePicker
                     value={editDueDate}
-                    onChange={(e) => setEditDueDate(e.target.value)}
+                    onChange={(iso) => setEditDueDate(iso)}
                     disabled={savingEdit}
-                    className="bg-white"
                   />
                 </div>
                 {teamMembers.length > 0 && (
