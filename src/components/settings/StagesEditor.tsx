@@ -218,20 +218,22 @@ export function StagesEditor({ initialStages, apiPrefix = "/api" }: StagesEditor
               </Button>
             </div>
           ) : (
-            <div className="flex items-center gap-3">
-              <GripVertical className="w-4 h-4 text-slate-300 cursor-grab flex-shrink-0" />
-              <span
-                className="w-3 h-3 rounded-full flex-shrink-0"
-                style={{ backgroundColor: stage.color }}
-              />
-              <span
-                className="flex-1 font-medium text-slate-800 cursor-pointer hover:text-indigo-600"
-                onClick={() => startEdit(stage)}
-              >
-                {stage.name}
-              </span>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <GripVertical className="w-4 h-4 text-slate-300 cursor-grab flex-shrink-0" />
+                <span
+                  className="w-3 h-3 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: stage.color }}
+                />
+                <span
+                  className="flex-1 min-w-0 font-medium text-slate-800 cursor-pointer hover:text-indigo-600 truncate"
+                  onClick={() => startEdit(stage)}
+                >
+                  {stage.name}
+                </span>
+              </div>
 
-              <div className="flex items-center gap-4 ml-auto">
+              <div className="flex items-center gap-3 sm:ml-auto pl-7 sm:pl-0">
                 <div className="flex items-center gap-1.5">
                   <Checkbox
                     id={`final-${stage.id}`}

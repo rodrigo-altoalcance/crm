@@ -49,7 +49,7 @@ export default async function ClientDetailPage({
   if (!lead) notFound()
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <Link
         href="/dashboard/clients"
         className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 mb-6"

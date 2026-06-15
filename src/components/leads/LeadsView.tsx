@@ -58,8 +58,10 @@ export function LeadsView({
 
   return (
     <div>
-      <div className="flex items-center gap-2 mb-6">
-        <div className="flex rounded-lg border bg-white p-1 shadow-sm">
+      {/* Toolbar */}
+      <div className="flex flex-col md:flex-row md:items-center gap-2 mb-4 md:mb-6">
+        {/* Vista toggle: solo en desktop */}
+        <div className="hidden md:flex rounded-lg border bg-white p-1 shadow-sm flex-shrink-0">
           <button
             onClick={() => setView("kanban")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
@@ -78,55 +80,76 @@ export function LeadsView({
           </button>
         </div>
 
-        <div className="relative ml-2">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar lead..."
-            className="pl-8 h-9 w-56 bg-white text-sm"
-          />
-        </div>
+        <div className="flex items-center gap-2 md:ml-2">
+          <div className="relative flex-1 md:flex-none">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar lead..."
+              className="pl-8 h-9 w-full md:w-56 bg-white text-sm"
+            />
+          </div>
 
-        {view === "table" && customFields.length > 0 && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9 ml-1">
-                <Columns3 className="w-4 h-4 mr-1.5" /> Columnas
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52">
-              <DropdownMenuLabel>Columnas personalizadas</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {customFields.map((f) => (
-                <DropdownMenuCheckboxItem
-                  key={f.id}
-                  checked={columnPrefs[f.id] === true}
-                  onCheckedChange={(checked) => handleToggleColumn(f.id, checked)}
-                  onSelect={(e) => e.preventDefault()}
-                >
-                  {f.nombre}
-                </DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+          {view === "table" && customFields.length > 0 && (
+            <div className="hidden md:block">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9">
+                    <Columns3 className="w-4 h-4 mr-1.5" /> Columnas
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52">
+                  <DropdownMenuLabel>Columnas personalizadas</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {customFields.map((f) => (
+                    <DropdownMenuCheckboxItem
+                      key={f.id}
+                      checked={columnPrefs[f.id] === true}
+                      onCheckedChange={(checked) => handleToggleColumn(f.id, checked)}
+                      onSelect={(e) => e.preventDefault()}
+                    >
+                      {f.nombre}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
+        </div>
       </div>
 
-      {view === "kanban" ? (
-        <LeadsKanban leads={filteredLeads} stages={stages} profile={profile} companyId={companyId} basePath={basePath} apiPrefix={apiPrefix} />
-      ) : (
+      {/* Mobile: siempre vista tabla (no hay drag-and-drop) */}
+      <div className="md:hidden">
         <LeadsTable
-        leads={filteredLeads}
-        stages={stages}
-        teamMembers={teamMembers}
-        basePath={basePath}
-        apiPrefix={apiPrefix}
-        customFields={customFields}
-        visibleCustomFieldIds={visibleCustomFieldIds}
-        fieldValuesMap={fieldValuesMap}
-      />
-      )}
+          leads={filteredLeads}
+          stages={stages}
+          teamMembers={teamMembers}
+          basePath={basePath}
+          apiPrefix={apiPrefix}
+          customFields={customFields}
+          visibleCustomFieldIds={visibleCustomFieldIds}
+          fieldValuesMap={fieldValuesMap}
+        />
+      </div>
+
+      {/* Desktop: kanban o tabla según el toggle */}
+      <div className="hidden md:block">
+        {view === "kanban" ? (
+          <LeadsKanban leads={filteredLeads} stages={stages} profile={profile} companyId={companyId} basePath={basePath} apiPrefix={apiPrefix} />
+        ) : (
+          <LeadsTable
+            leads={filteredLeads}
+            stages={stages}
+            teamMembers={teamMembers}
+            basePath={basePath}
+            apiPrefix={apiPrefix}
+            customFields={customFields}
+            visibleCustomFieldIds={visibleCustomFieldIds}
+            fieldValuesMap={fieldValuesMap}
+          />
+        )}
+      </div>
     </div>
   )
 }

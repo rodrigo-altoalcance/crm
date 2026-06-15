@@ -42,8 +42,8 @@ export default async function ClientsPage() {
   }
 
   return (
-    <div className="p-8">
-      <div className="mb-8">
+    <div className="p-4 md:p-8">
+      <div className="mb-4 md:mb-8">
         <h1 className="text-2xl font-bold text-slate-900">Clientes</h1>
         <p className="text-sm text-slate-500 mt-1">{clients.length} cliente{clients.length !== 1 ? "s" : ""} en total</p>
       </div>

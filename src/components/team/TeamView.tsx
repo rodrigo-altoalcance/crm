@@ -108,7 +108,54 @@ export function TeamView({ members, companyId, currentUserRole, currentUserId, m
         </p>
       )}
 
-      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+      {/* Mobile: lista de miembros */}
+      <div className="md:hidden bg-white rounded-xl border shadow-sm overflow-hidden divide-y divide-slate-100">
+        {members.length === 0 && (
+          <div className="text-center text-slate-500 py-12">No hay miembros en el equipo</div>
+        )}
+        {members.map((member) => (
+          <div key={member.id} className="flex items-center gap-3 px-4 py-3">
+            <Avatar className="w-9 h-9 flex-shrink-0">
+              <AvatarFallback className="bg-indigo-100 text-indigo-600 text-sm">
+                {member.full_name.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-medium text-slate-900 truncate">{member.full_name}</span>
+                <Badge variant={roleVariants[member.role]} className="text-xs flex-shrink-0">
+                  {roleLabels[member.role]}
+                </Badge>
+              </div>
+              {member.role === "seller" && (
+                <p className="text-xs text-slate-400 mt-0.5 truncate">{permissionsSummary(member)}</p>
+              )}
+            </div>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {canInvite && member.role === "seller" && (
+                <Link href={`${permissionsBasePath}/${member.id}/permissions`}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Settings className="w-4 h-4" />
+                  </Button>
+                </Link>
+              )}
+              {canInvite && member.id !== currentUserId && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-slate-400 hover:text-red-600"
+                  onClick={() => setDeletingId(member.id)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop: tabla */}
+      <div className="hidden md:block bg-white rounded-xl border shadow-sm overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>

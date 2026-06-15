@@ -31,7 +31,7 @@ export default async function NewLeadPage() {
   ])
 
   return (
-    <div className="p-8 max-w-2xl">
+    <div className="p-4 md:p-8 max-w-2xl">
       <Link
         href="/dashboard/leads"
         className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 mb-6"

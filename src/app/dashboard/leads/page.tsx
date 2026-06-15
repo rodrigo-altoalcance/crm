@@ -58,8 +58,8 @@ export default async function LeadsPage() {
   }
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-8">
+    <div className="p-4 md:p-8">
+      <div className="flex items-center justify-between mb-4 md:mb-8">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Leads</h1>
           <p className="text-sm text-slate-500 mt-1">{leads?.length || 0} leads en total</p>

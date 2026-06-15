@@ -37,7 +37,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   const canEditTasks = profile.role === "super_admin" || profile.role === "company_admin" || profile.permissions?.can_edit_leads === true
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <Link href="/dashboard/leads" className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 mb-6">
         <ArrowLeft className="w-4 h-4" /> Volver a Leads
       </Link>

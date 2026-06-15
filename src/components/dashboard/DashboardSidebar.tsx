@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import {
   LayoutDashboard, Zap, Users, CheckSquare, Settings, LogOut,
-  ChevronRight, Building2,
+  ChevronRight, Building2, X,
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 
@@ -21,9 +21,11 @@ const nav = [
 interface DashboardSidebarProps {
   companyName?: string
   isImpersonating?: boolean
+  mobileOpen?: boolean
+  onMobileClose?: () => void
 }
 
-export function DashboardSidebar({ companyName, isImpersonating }: DashboardSidebarProps) {
+export function DashboardSidebar({ companyName, isImpersonating, mobileOpen = false, onMobileClose }: DashboardSidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
 
@@ -33,8 +35,12 @@ export function DashboardSidebar({ companyName, isImpersonating }: DashboardSide
     router.push("/login")
   }
 
-  return (
-    <aside className="w-64 flex-shrink-0 bg-slate-900 flex flex-col h-screen sticky top-0">
+  function handleNavClick() {
+    onMobileClose?.()
+  }
+
+  const navContent = (
+    <>
       <div className="px-6 py-5 border-b border-slate-800">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center flex-shrink-0">
@@ -58,6 +64,7 @@ export function DashboardSidebar({ companyName, isImpersonating }: DashboardSide
             <Link
               key={href}
               href={href}
+              onClick={handleNavClick}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
                 active
@@ -82,6 +89,32 @@ export function DashboardSidebar({ companyName, isImpersonating }: DashboardSide
           <span>Cerrar sesión</span>
         </button>
       </div>
-    </aside>
+    </>
+  )
+
+  return (
+    <>
+      {/* Desktop sidebar: always visible, in document flow */}
+      <aside className="hidden md:flex w-64 flex-shrink-0 bg-slate-900 flex-col h-screen sticky top-0">
+        {navContent}
+      </aside>
+
+      {/* Mobile drawer: fixed overlay, only visible when open */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 md:hidden flex">
+          <aside className="relative w-72 bg-slate-900 flex flex-col h-full">
+            <button
+              onClick={onMobileClose}
+              className="absolute top-4 right-3 p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              aria-label="Cerrar menú"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            {navContent}
+          </aside>
+          <div className="flex-1 bg-black/50" onClick={onMobileClose} />
+        </div>
+      )}
+    </>
   )
 }

@@ -4,7 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { Trash2 } from "lucide-react"
+import { Trash2, Mail, Phone, Calendar } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -69,7 +69,66 @@ export function LeadsTable({
 
   return (
     <>
-      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+      {/* Mobile: cards */}
+      <div className="md:hidden space-y-2">
+        {leads.length === 0 && (
+          <div className="text-center text-slate-500 py-12">No hay leads para mostrar</div>
+        )}
+        {leads.map((lead) => {
+          const stage = stageMap[lead.stage_id]
+          return (
+            <div key={lead.id} className="bg-white rounded-xl border shadow-sm p-4">
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <Link href={`${basePath}/${lead.id}`} className="flex-1 min-w-0">
+                  <p className="font-semibold text-slate-900 leading-tight">
+                    {lead.first_name} {lead.last_name}
+                  </p>
+                  {stage && (
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: stage.color }} />
+                      <span className="text-xs text-slate-600">{stage.name}</span>
+                    </div>
+                  )}
+                </Link>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <Badge variant={lead.source === "meta" ? "info" : lead.source === "calendly" ? "warning" : "secondary"}>
+                    {sourceLabels[lead.source] || lead.source}
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="w-8 h-8 text-slate-400 hover:text-red-600"
+                    onClick={() => setDeletingId(lead.id)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+              <div className="space-y-1">
+                {lead.email && (
+                  <p className="text-sm text-slate-500 flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5 flex-shrink-0" /> {lead.email}
+                  </p>
+                )}
+                {lead.phone && (
+                  <p className="text-sm text-slate-500 flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5 flex-shrink-0" /> {lead.phone}
+                  </p>
+                )}
+                {lead.scheduled_at && (
+                  <p className="text-xs text-indigo-600 font-medium flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 flex-shrink-0" /> Agenda: {formatScheduledAt(lead.scheduled_at)}
+                  </p>
+                )}
+              </div>
+              <p className="text-xs text-slate-400 mt-2">{formatDateTime(lead.created_at)}</p>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Desktop: tabla */}
+      <div className="hidden md:block bg-white rounded-xl border shadow-sm overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
@@ -167,7 +226,7 @@ export function LeadsTable({
             })}
           </TableBody>
         </Table>
-      </div>
+      </div>{/* end desktop */}
 
       <ConfirmDialog
         open={!!deletingId}

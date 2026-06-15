@@ -203,20 +203,22 @@ export function LeadDetailPanel({ lead, stages, teamMembers, profile, apiPrefix 
               <div className="space-y-1">
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Fecha de agenda inicial</p>
                 {editingScheduled ? (
-                  <div className="flex items-center gap-2">
+                  <div className="space-y-2">
                     <Input
                       type="datetime-local"
                       value={scheduledValue}
                       onChange={(e) => setScheduledValue(e.target.value)}
-                      className="h-8 text-sm"
+                      className="h-8 text-sm w-full"
                       disabled={savingScheduled}
                     />
-                    <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600" onClick={saveScheduledAt} disabled={savingScheduled}>
-                      <Check className="w-4 h-4" />
-                    </Button>
-                    <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400" onClick={() => setEditingScheduled(false)} disabled={savingScheduled}>
-                      <X className="w-4 h-4" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" variant="outline" className="h-8 text-green-600 border-green-200 hover:bg-green-50" onClick={saveScheduledAt} disabled={savingScheduled}>
+                        <Check className="w-3.5 h-3.5 mr-1" /> Guardar
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-8 text-slate-400" onClick={() => setEditingScheduled(false)} disabled={savingScheduled}>
+                        <X className="w-3.5 h-3.5 mr-1" /> Cancelar
+                      </Button>
+                    </div>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
@@ -330,21 +332,23 @@ export function LeadDetailPanel({ lead, stages, teamMembers, profile, apiPrefix 
                     {field.obligatorio && <span className="text-red-400 ml-1">*</span>}
                   </p>
                   {isEditing ? (
-                    <div className="flex items-center gap-2">
+                    <div className="space-y-2">
                       <Input
                         type={field.tipo === "numero" ? "number" : field.tipo === "fecha" ? "date" : "text"}
                         value={editingValue}
                         onChange={(e) => setEditingValue(e.target.value)}
-                        className="h-8 text-sm flex-1"
+                        className="h-8 text-sm w-full"
                         autoFocus
                         disabled={isSaving}
                       />
-                      <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600" onClick={() => saveFieldValue(field)} disabled={isSaving}>
-                        <Check className="w-4 h-4" />
-                      </Button>
-                      <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400" onClick={() => setEditingFieldId(null)} disabled={isSaving}>
-                        <X className="w-4 h-4" />
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" variant="outline" className="h-8 text-green-600 border-green-200 hover:bg-green-50" onClick={() => saveFieldValue(field)} disabled={isSaving}>
+                          <Check className="w-3.5 h-3.5 mr-1" /> Guardar
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-8 text-slate-400" onClick={() => setEditingFieldId(null)} disabled={isSaving}>
+                          <X className="w-3.5 h-3.5 mr-1" /> Cancelar
+                        </Button>
+                      </div>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
