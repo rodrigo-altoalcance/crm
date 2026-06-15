@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/shared/EmptyState"
 import { PriorityBadge } from "@/components/shared/PriorityBadge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { CheckSquare } from "lucide-react"
-import { formatDate } from "@/lib/utils"
+import { formatScheduledAt as formatDate } from "@/lib/utils"
 import type { Task, Profile } from "@/types/database"
 
 const statusConfig = {

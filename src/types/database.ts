@@ -112,8 +112,22 @@ export interface Task {
   status: TaskStatus
   created_by: string
   created_at: string
+  google_calendar_event_id?: string | null
   lead?: Lead
   assigned_profile?: Profile
+}
+
+export interface UserGoogleCalendarToken {
+  id: string
+  user_id: string
+  access_token: string
+  refresh_token: string
+  token_expiry: string
+  calendar_id: string
+  calendar_name: string | null
+  google_email: string | null
+  connected_at: string
+  updated_at: string
 }
 
 export interface WebhookToken {

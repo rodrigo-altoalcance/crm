@@ -709,6 +709,7 @@ Archivos afectados y corregidos: `LoginForm.tsx`, `AdminSidebar.tsx`, `Dashboard
 | 007 | scheduled_at en leads y agency_leads |
 | 008 | custom_lead_fields + custom_lead_field_values + user_lead_column_preferences |
 | 009 | notifications |
+| 010 | Google Calendar: tasks.due_date y agency_tasks.due_date a TIMESTAMPTZ, tabla user_google_calendar_tokens, columna google_calendar_event_id en ambas tablas de tareas |
 
 ## Sistema de notificaciones in-app
 
@@ -753,6 +754,85 @@ Las notificaciones se insertan via `createAdminClient()` (bypasea RLS) en los si
 - Recorre `tasks` y `agency_tasks` con `due_date = hoy` y `status != completed` y `assigned_to != null`
 - Inserta notificación `task_due` solo si no existe una igual en las últimas 24 h (dedup)
 - `CRON_SECRET` debe agregarse en Vercel → Settings → Environment Variables
+
+## Integración Google Calendar
+
+### Propósito
+Cada usuario puede conectar su propia cuenta de Google Calendar. Al crear una tarea desde el detalle de un lead, si el usuario tiene Calendar conectado aparece un checkbox para sincronizar. El evento se crea en el calendario del asignado (o del creador si no hay asignado).
+
+### Variables de entorno requeridas
+- `GOOGLE_CLIENT_ID` — Client ID de Google Cloud Console
+- `GOOGLE_CLIENT_SECRET` — Client Secret de Google Cloud Console
+- `NEXT_PUBLIC_SITE_URL` — URL base del sitio (ya existía, usada para redirect URI)
+
+### Tabla BD
+`user_google_calendar_tokens` — una fila por usuario, con RLS (solo el dueño lee/escribe su registro):
+```
+id, user_id(FK→auth.users CASCADE), access_token, refresh_token, token_expiry, calendar_id, calendar_name, google_email, connected_at, updated_at
+```
+
+### Columnas agregadas a tareas
+- `tasks.google_calendar_event_id TEXT NULL`
+- `agency_tasks.google_calendar_event_id TEXT NULL`
+
+### `tasks.due_date` y `agency_tasks.due_date`
+Convertidos de `DATE` a `TIMESTAMPTZ` en migración 010. Todos los formularios ahora usan `datetime-local` y envían `.toISOString()` a la API. El display usa `formatScheduledAt()` (no `formatDate()`).
+
+### Helper interno `src/lib/google-calendar.ts`
+```typescript
+import { createCalendarEvent, deleteCalendarEvent, updateCalendarEvent, getValidAccessToken } from "@/lib/google-calendar"
+```
+- `getValidAccessToken(userId)` — refresca automáticamente si está a < 5 min de expirar
+- `createCalendarEvent(userId, event)` — usa el `calendar_id` guardado del usuario
+- `deleteCalendarEvent(userId, eventId)` — 404 se trata como éxito
+- `updateCalendarEvent(userId, eventId, patch)` — PATCH parcial al evento
+
+### Rutas OAuth
+```
+GET    /api/auth/google-calendar/connect              → inicia OAuth (redirige a Google)
+GET    /api/auth/google-calendar/callback             → recibe code, guarda tokens, redirige a ?calendar=conectado
+DELETE /api/auth/google-calendar/disconnect           → elimina token + revoca con Google
+GET    /api/auth/google-calendar/calendars            → lista calendarios del usuario
+PATCH  /api/auth/google-calendar/calendars            → guarda calendar_id + calendar_name seleccionado
+GET    /api/auth/google-calendar/status?userId=[id]   → { connected, calendarId, calendarName, email }
+```
+Seguridad OAuth: nonce en cookie `gcal_oauth_state` (HttpOnly, SameSite=Lax) + `returnTo` codificado — validado en callback antes de procesar el code.
+
+### Redirects configurados en Google Cloud Console
+- `https://crm30-git-dev-rodrigo-altoalcance.vercel.app/api/auth/google-calendar/callback`
+- `https://crm30-rodrigo-altoalcance.vercel.app/api/auth/google-calendar/callback`
+
+### UI de configuración personal
+Componente `GoogleCalendarCard` (`src/components/settings/GoogleCalendarCard.tsx`) — aparece en:
+- `/dashboard/settings/integrations` (sección "Mis integraciones")
+- `/admin/settings/integrations` (sección "Mis integraciones personales")
+
+### Flujo de sincronización al crear tarea
+1. `LeadTasksPanel` muestra checkbox si el creador tiene Calendar conectado
+2. Si el asignado es distinto al creador, llama a `status?userId=` para verificar si tiene Calendar
+3. Si el asignado no tiene Calendar → warning inline, igual se puede guardar
+4. Al guardar: API llama a `createCalendarEvent` en el usuario objetivo (asignado o creador)
+5. Si Google falla → tarea se crea igual, respuesta incluye `_calendarSyncFailed: true` → toast warning en UI
+6. `google_calendar_event_id` se guarda en la tarea
+
+### Flujo al completar / eliminar tarea
+- **Completada**: `PATCH /api/tasks/[id]` llama a `updateCalendarEvent` con `summary: "✓ Completada: [título]"` (best effort, no bloquea)
+- **Eliminada**: `DELETE /api/tasks/[id]` llama a `deleteCalendarEvent` (best effort, no bloquea)
+- Aplica igual en ambos contextos (empresa y agencia)
+
+### Patrón crítico — `due_date` ahora es TIMESTAMPTZ
+```typescript
+// ✅ Siempre convertir a ISO antes de enviar a la API
+due_date: form.due_date ? new Date(form.due_date).toISOString() : null
+
+// ✅ Siempre mostrar con formatScheduledAt() (no formatDate())
+formatScheduledAt(task.due_date) // → "15/06/2025 09:00"
+
+// ✅ Inicializar datetime-local desde TIMESTAMPTZ
+const d = new Date(isoString)
+const pad = (n) => String(n).padStart(2, "0")
+`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+```
 
 ## Convenciones UI
 - Sidebar oscuro (`#0F172A`), accent `#6366F1` (indigo-500), fondo `#F8FAFC`

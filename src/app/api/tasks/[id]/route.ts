@@ -3,6 +3,7 @@ import { cookies } from "next/headers"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getProfile } from "@/lib/auth/getProfile"
+import { updateCalendarEvent, deleteCalendarEvent } from "@/lib/google-calendar"
 
 export async function PATCH(
   request: Request,
@@ -18,15 +19,13 @@ export async function PATCH(
   const companyId =
     profile.role === "super_admin" ? impersonatedId : profile.company_id
 
-  // Build query: super_admin without impersonation can access any task
   let existingQuery = supabase
     .from("tasks")
-    .select("id, lead_id, title, status, assigned_to")
+    .select("id, lead_id, title, status, assigned_to, google_calendar_event_id")
     .eq("id", id)
   if (companyId) existingQuery = existingQuery.eq("company_id", companyId)
 
   const { data: existing } = await existingQuery.single()
-
   if (!existing) return NextResponse.json({ error: "Tarea no encontrada" }, { status: 404 })
 
   const body = await request.json()
@@ -49,7 +48,7 @@ export async function PATCH(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Notificar cuando cambia el responsable
+  // Notify new assignee
   if (
     assigned_to !== undefined &&
     assigned_to !== null &&
@@ -65,7 +64,7 @@ export async function PATCH(
     })
   }
 
-  // When task is marked completed and linked to a lead, auto-generate history entry
+  // When task is completed, add lead activity and update Google Calendar event
   if (status === "completed" && existing.status !== "completed" && existing.lead_id) {
     const { data: lastComment } = await supabase
       .from("task_comments")
@@ -85,6 +84,14 @@ export async function PATCH(
         closing_comment: lastComment?.text ?? null,
       },
     })
+
+    // Update Google Calendar event to mark as completed (best effort)
+    if (existing.google_calendar_event_id) {
+      const calendarUserId = existing.assigned_to || profile.id
+      updateCalendarEvent(calendarUserId, existing.google_calendar_event_id, {
+        summary: `✓ Completada: ${existing.title}`,
+      }).catch((err) => console.error("[calendar] updateCalendarEvent failed:", err))
+    }
   }
 
   return NextResponse.json(data)
@@ -108,11 +115,27 @@ export async function DELETE(
     ? cookieStore2.get("impersonated_company")?.value
     : profile.company_id
 
+  // Fetch task to get calendar event id before deleting
+  let taskQuery = supabase
+    .from("tasks")
+    .select("id, assigned_to, google_calendar_event_id")
+    .eq("id", id)
+  if (companyId2) taskQuery = taskQuery.eq("company_id", companyId2)
+  const { data: existing } = await taskQuery.single()
+
   let deleteQuery = supabase.from("tasks").delete().eq("id", id)
   if (companyId2) deleteQuery = deleteQuery.eq("company_id", companyId2)
 
   const { error } = await deleteQuery
-
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Delete Google Calendar event (best effort — don't block response)
+  if (existing?.google_calendar_event_id) {
+    const calendarUserId = existing.assigned_to || profile.id
+    deleteCalendarEvent(calendarUserId, existing.google_calendar_event_id).catch((err) =>
+      console.error("[calendar] deleteCalendarEvent failed:", err)
+    )
+  }
+
   return NextResponse.json({ success: true })
 }

@@ -4,6 +4,7 @@ import { getProfile } from "@/lib/auth/getProfile"
 import { redirect } from "next/navigation"
 import { WebhookConfig } from "@/components/settings/WebhookConfig"
 import { CustomLeadFieldsEditor } from "@/components/settings/CustomLeadFieldsEditor"
+import { GoogleCalendarCard } from "@/components/settings/GoogleCalendarCard"
 import type { WebhookToken } from "@/types/database"
 
 export default async function AgencyIntegrationsPage() {
@@ -35,6 +36,23 @@ export default async function AgencyIntegrationsPage() {
     <div className="p-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-slate-900">Integraciones</h1>
+      </div>
+
+      {/* Personal integrations — per user, separate from business integrations */}
+      <div className="mb-8">
+        <h2 className="text-lg font-semibold text-slate-900">Mis integraciones personales</h2>
+        <p className="text-sm text-slate-500 mt-1">
+          Cada usuario conecta su propia cuenta. Esto no afecta las integraciones de la agencia.
+        </p>
+        <div className="mt-4">
+          <GoogleCalendarCard returnTo="/admin/settings/integrations" />
+        </div>
+      </div>
+
+      <div className="border-t border-slate-200 mb-8" />
+
+      <div className="mb-8">
+        <h2 className="text-lg font-semibold text-slate-900">Integraciones de la agencia</h2>
         <p className="text-sm text-slate-500 mt-1">
           Webhooks exclusivos de la agencia. Completamente separados de los webhooks de los clientes.
         </p>

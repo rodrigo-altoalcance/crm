@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getProfile } from "@/lib/auth/getProfile"
+import { updateCalendarEvent, deleteCalendarEvent } from "@/lib/google-calendar"
 
 export async function PATCH(
   request: Request,
@@ -18,7 +19,7 @@ export async function PATCH(
 
   const { data: existing } = await admin
     .from("agency_tasks")
-    .select("id, lead_id, title, status, assigned_to")
+    .select("id, lead_id, title, status, assigned_to, google_calendar_event_id")
     .eq("id", id)
     .single()
 
@@ -44,7 +45,7 @@ export async function PATCH(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Notificar cuando cambia el responsable
+  // Notify new assignee
   if (
     assigned_to !== undefined &&
     assigned_to !== null &&
@@ -58,7 +59,7 @@ export async function PATCH(
     })
   }
 
-  // When task is marked completed and linked to a lead, auto-generate history entry
+  // When task is completed, add lead activity and update Google Calendar event
   if (status === "completed" && existing.status !== "completed" && existing.lead_id) {
     const { data: lastComment } = await admin
       .from("agency_task_comments")
@@ -78,6 +79,14 @@ export async function PATCH(
         closing_comment: lastComment?.text ?? null,
       },
     })
+
+    // Update Google Calendar event to mark as completed (best effort)
+    if (existing.google_calendar_event_id) {
+      const calendarUserId = existing.assigned_to || profile.id
+      updateCalendarEvent(calendarUserId, existing.google_calendar_event_id, {
+        summary: `✓ Completada: ${existing.title}`,
+      }).catch((err) => console.error("[calendar] updateCalendarEvent failed (agency):", err))
+    }
   }
 
   return NextResponse.json(data)
@@ -95,8 +104,24 @@ export async function DELETE(
   }
 
   const admin = createAdminClient()
-  const { error } = await admin.from("agency_tasks").delete().eq("id", id)
 
+  // Fetch task before deleting to get calendar event id
+  const { data: existing } = await admin
+    .from("agency_tasks")
+    .select("id, assigned_to, google_calendar_event_id")
+    .eq("id", id)
+    .single()
+
+  const { error } = await admin.from("agency_tasks").delete().eq("id", id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Delete Google Calendar event (best effort — don't block response)
+  if (existing?.google_calendar_event_id) {
+    const calendarUserId = existing.assigned_to || profile.id
+    deleteCalendarEvent(calendarUserId, existing.google_calendar_event_id).catch((err) =>
+      console.error("[calendar] deleteCalendarEvent failed (agency):", err)
+    )
+  }
+
   return NextResponse.json({ success: true })
 }

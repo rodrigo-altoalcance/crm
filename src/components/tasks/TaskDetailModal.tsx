@@ -11,8 +11,17 @@ import { Badge } from "@/components/ui/badge"
 import { PriorityBadge } from "@/components/shared/PriorityBadge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Calendar, Link as LinkIcon, Mail, MessageSquare, Pencil, Phone, X } from "lucide-react"
-import { formatDate } from "@/lib/utils"
+import { formatScheduledAt } from "@/lib/utils"
 import type { Task, TaskComment, Profile } from "@/types/database"
+
+// Convert an ISO timestamp or YYYY-MM-DD string to datetime-local input value
+function toDatetimeLocal(isoString: string): string {
+  if (!isoString) return ""
+  const d = new Date(isoString)
+  if (isNaN(d.getTime())) return ""
+  const pad = (n: number) => String(n).padStart(2, "0")
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
 
 const statusConfig = {
   pending: { label: "Pendiente", className: "bg-yellow-100 text-yellow-700 border-yellow-200" },
@@ -51,7 +60,7 @@ export function TaskDetailModal({
   // Edit mode state
   const [isEditing, setIsEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(task.title)
-  const [editDueDate, setEditDueDate] = useState(task.due_date ?? "")
+  const [editDueDate, setEditDueDate] = useState(task.due_date ? toDatetimeLocal(task.due_date) : "")
   const [editAssignedTo, setEditAssignedTo] = useState(task.assigned_to ?? "")
   const [savingEdit, setSavingEdit] = useState(false)
 
@@ -65,7 +74,7 @@ export function TaskDetailModal({
     setStatusComment("")
     setIsEditing(false)
     setEditTitle(task.title)
-    setEditDueDate(task.due_date ?? "")
+    setEditDueDate(task.due_date ? toDatetimeLocal(task.due_date) : "")
     setEditAssignedTo(task.assigned_to ?? "")
     loadComments()
   }, [open, task.id])
@@ -164,7 +173,7 @@ export function TaskDetailModal({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         title: editTitle.trim(),
-        due_date: editDueDate || null,
+        due_date: editDueDate ? new Date(editDueDate).toISOString() : null,
         assigned_to: editAssignedTo || null,
       }),
     })
@@ -196,7 +205,7 @@ export function TaskDetailModal({
               {task.due_date && (
                 <span className="flex items-center gap-1.5">
                   <Calendar className="w-4 h-4 text-slate-400" />
-                  {formatDate(task.due_date)}
+                  {formatScheduledAt(task.due_date)}
                 </span>
               )}
               {(task as any).assigned_profile && (
@@ -245,7 +254,7 @@ export function TaskDetailModal({
                 <div className="space-y-1">
                   <label className="text-xs text-slate-600">Fecha límite</label>
                   <Input
-                    type="date"
+                    type="datetime-local"
                     value={editDueDate}
                     onChange={(e) => setEditDueDate(e.target.value)}
                     disabled={savingEdit}

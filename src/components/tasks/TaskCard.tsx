@@ -2,7 +2,7 @@
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { PriorityBadge } from "@/components/shared/PriorityBadge"
-import { formatDate } from "@/lib/utils"
+import { formatScheduledAt as formatDate } from "@/lib/utils"
 import { Calendar, Link as LinkIcon } from "lucide-react"
 import type { Task } from "@/types/database"
 
