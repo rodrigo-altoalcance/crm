@@ -18,7 +18,10 @@ export async function GET() {
     headers: { Authorization: `Bearer ${accessToken}` },
   })
 
-  if (!res.ok) return NextResponse.json({ error: "Error al obtener calendarios" }, { status: 502 })
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({}))
+    return NextResponse.json({ error: `Google ${res.status}: ${JSON.stringify(errBody)}` }, { status: 502 })
+  }
 
   const data = await res.json()
   const calendars = ((data.items || []) as any[]).map((item) => ({
