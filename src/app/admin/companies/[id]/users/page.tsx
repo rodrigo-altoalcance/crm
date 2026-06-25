@@ -1,23 +1,11 @@
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { notFound } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Users } from "lucide-react"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { ArrowLeft } from "lucide-react"
 import { InviteUserForm } from "@/components/admin/InviteUserForm"
+import { CompanyUsersClient, type UserWithAuth } from "@/components/admin/CompanyUsersClient"
 import type { Profile } from "@/types/database"
-
-const ROLE_LABELS: Record<string, string> = {
-  company_admin: "Administrador",
-  seller: "Vendedor",
-  super_admin: "Super Admin",
-}
 
 export default async function CompanyUsersPage({
   params,
@@ -41,7 +29,20 @@ export default async function CompanyUsersPage({
     .eq("company_id", id)
     .order("created_at", { ascending: true })
 
-  const users = (profiles || []) as Profile[]
+  const profileList = (profiles || []) as Profile[]
+
+  // Fetch auth user data (email + confirmation status) for each profile
+  const admin = createAdminClient()
+  const { data: authList } = await admin.auth.admin.listUsers({ perPage: 1000 })
+  const authMap = new Map(
+    (authList?.users ?? []).map((u) => [u.id, { email: u.email ?? "", email_confirmed_at: u.email_confirmed_at ?? null }])
+  )
+
+  const users: UserWithAuth[] = profileList.map((p) => ({
+    ...p,
+    email: authMap.get(p.id)?.email ?? "",
+    email_confirmed_at: authMap.get(p.id)?.email_confirmed_at ?? null,
+  }))
 
   return (
     <div className="p-8">
@@ -64,43 +65,7 @@ export default async function CompanyUsersPage({
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-2 bg-white rounded-xl border shadow-sm overflow-hidden">
-          {users.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Rol</TableHead>
-                  <TableHead>Teléfono</TableHead>
-                  <TableHead>Miembro desde</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.full_name}</TableCell>
-                    <TableCell>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700">
-                        {ROLE_LABELS[user.role] || user.role}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-slate-500">{user.phone || "—"}</TableCell>
-                    <TableCell className="text-slate-500 text-sm">
-                      {new Intl.DateTimeFormat("es-CL", {
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                      }).format(new Date(user.created_at))}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="py-16 text-center">
-              <Users className="w-8 h-8 text-slate-300 mx-auto mb-3" />
-              <p className="text-sm text-slate-500">No hay usuarios en esta empresa.</p>
-            </div>
-          )}
+          <CompanyUsersClient users={users} companyId={id} />
         </div>
 
         <div className="bg-white rounded-xl border shadow-sm p-6">
