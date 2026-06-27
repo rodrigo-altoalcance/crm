@@ -12,7 +12,7 @@ export async function GET(
   const supabase = await createClient()
 
   const profile = await getProfile(supabase)
-  if (profile?.role !== "super_admin") {
+  if (profile?.role !== "super_admin" && profile?.role !== "agency_member") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
@@ -37,7 +37,7 @@ export async function POST(
   const supabase = await createClient()
 
   const profile = await getProfile(supabase)
-  if (profile?.role !== "super_admin") {
+  if (profile?.role !== "super_admin" && profile?.role !== "agency_member") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 

@@ -4,6 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { getProfile } from "@/lib/auth/getProfile"
 import { sendInvitationEmail } from "@/lib/email/invitation"
 
+const ALLOWED_ROLES = ["super_admin", "agency_member"] as const
+
 export async function GET() {
   const supabase = await createClient()
   const profile = await getProfile(supabase)
@@ -15,7 +17,7 @@ export async function GET() {
   const { data, error } = await admin
     .from("profiles")
     .select("*")
-    .eq("role", "super_admin")
+    .in("role", ["super_admin", "agency_member"])
     .order("created_at")
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -29,10 +31,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
-  const { full_name, email } = await request.json()
+  const { full_name, email, role } = await request.json()
   if (!full_name || !email) {
     return NextResponse.json({ error: "Nombre y email son requeridos" }, { status: 400 })
   }
+
+  const assignedRole = ALLOWED_ROLES.includes(role) ? role : "agency_member"
 
   const admin = createAdminClient()
 
@@ -43,7 +47,7 @@ export async function POST(request: Request) {
     options: {
       redirectTo: `${siteUrl}/activar-cuenta`,
       data: {
-        role: "super_admin",
+        role: assignedRole,
         full_name,
       },
     },

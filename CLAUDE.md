@@ -14,9 +14,24 @@
 ## Roles
 | Rol | Acceso |
 |-----|--------|
-| `super_admin` | `/admin/*` — Usuario Empresa, Leads, Clientes, Config, Emails |
+| `super_admin` | `/admin/*` — acceso completo, incluyendo datos financieros (pagos, fees) |
+| `agency_member` | `/admin/*` — igual que super_admin EXCEPTO datos financieros (sin pagos, sin fees) |
 | `company_admin` | `/dashboard/*` — Leads, Clientes, Equipo, Config |
 | `seller` | `/dashboard/*` — según permisos en `profiles.permissions` (jsonb) |
+
+### Rol agency_member — detalles
+- Invitado desde `/admin/team` (solo super_admin puede invitar)
+- Accede a todo `/admin/*` excepto `/admin/companies/[id]/payments` (proxy lo redirige a `/admin`)
+- API guard en rutas de pagos: `profile.role !== "super_admin"` — no cambiado
+- Frontend oculta completamente (no muestra placeholder):
+  - Dashboard admin: tarjeta "Ingresos mensuales", secciones "Próximos pagos" y "Últimos pagos"
+  - `/admin/companies`: columna "Fee mensual", ítem "Pagos" en dropdown de acciones
+  - `/admin/clients`: columna "Plan"
+  - `/admin/companies/[id]`: tarjeta "Fee mensual", sección "Últimos pagos", botón "Pagos" en acciones rápidas
+- Helper: `canViewFinancials(profile)` en `src/lib/auth/roles.ts` — retorna `true` solo para `super_admin`
+- Helper: `isAgencyStaff(profile)` — retorna `true` para `super_admin` y `agency_member`
+- RLS: función `is_agency_staff()` en BD (migración 014), usada en políticas de tablas de agencia
+- Sidebar: ítem "Equipo" solo visible para `super_admin` (prop `role` pasado desde layout)
 
 ## Estructura de rutas clave
 ```
@@ -770,6 +785,7 @@ Header con nombre, StatusBadge, fee mensual, y botones de acceso rápido:
 | 009 | notifications |
 | 010 | Google Calendar: tasks.due_date y agency_tasks.due_date a TIMESTAMPTZ, tabla user_google_calendar_tokens, columna google_calendar_event_id en ambas tablas de tareas |
 | 011 | agency_client_activities — historial de actividades por empresa cliente |
+| 014 | agency_member role — CHECK constraint, is_agency_staff(), políticas RLS actualizadas |
 
 ## Sistema de notificaciones in-app
 

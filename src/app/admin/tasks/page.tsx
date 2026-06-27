@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getProfile } from "@/lib/auth/getProfile"
+import { isAgencyStaff } from "@/lib/auth/roles"
 import { redirect } from "next/navigation"
 import { TasksView } from "@/components/tasks/TasksView"
 import type { Task } from "@/types/database"
@@ -8,7 +9,7 @@ import type { Task } from "@/types/database"
 export default async function AdminTasksPage() {
   const supabase = await createClient()
   const profile = await getProfile(supabase)
-  if (!profile || profile.role !== "super_admin") redirect("/login")
+  if (!profile || !isAgencyStaff(profile)) redirect("/login")
 
   const admin = createAdminClient()
 
@@ -17,7 +18,7 @@ export default async function AdminTasksPage() {
       .from("agency_tasks")
       .select("*, assigned_profile:profiles!assigned_to(id, full_name, avatar_url), lead:agency_leads(id, first_name, last_name, phone, email)")
       .order("created_at", { ascending: false }),
-    supabase.from("profiles").select("id, full_name, avatar_url, role, permissions, phone, company_id, created_at").eq("role", "super_admin"),
+    supabase.from("profiles").select("id, full_name, avatar_url, role, permissions, phone, company_id, created_at").in("role", ["super_admin", "agency_member"]),
   ])
 
   // Load last comment per lead

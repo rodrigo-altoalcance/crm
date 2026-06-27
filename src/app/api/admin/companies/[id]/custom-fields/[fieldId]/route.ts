@@ -10,7 +10,7 @@ export async function PATCH(
   const { id: companyId, fieldId } = await params
   const supabase = await createClient()
   const profile = await getProfile(supabase)
-  if (!profile || profile.role !== "super_admin") return NextResponse.json({ error: "No autorizado" }, { status: 403 })
+  if (!profile || (profile.role !== "super_admin" && profile.role !== "agency_member")) return NextResponse.json({ error: "No autorizado" }, { status: 403 })
 
   const body = await request.json()
   const { nombre, tipo, obligatorio, orden } = body
@@ -35,7 +35,7 @@ export async function DELETE(
   const { id: companyId, fieldId } = await params
   const supabase = await createClient()
   const profile = await getProfile(supabase)
-  if (!profile || profile.role !== "super_admin") return NextResponse.json({ error: "No autorizado" }, { status: 403 })
+  if (!profile || (profile.role !== "super_admin" && profile.role !== "agency_member")) return NextResponse.json({ error: "No autorizado" }, { status: 403 })
 
   const admin = createAdminClient()
   const { error } = await admin

@@ -10,7 +10,7 @@ export async function GET(
   const { id: companyId, leadId } = await params
   const supabase = await createClient()
   const profile = await getProfile(supabase)
-  if (profile?.role !== "super_admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  if (profile?.role !== "super_admin" && profile?.role !== "agency_member") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
   const admin = createAdminClient()
   const { data, error } = await admin
@@ -31,7 +31,7 @@ export async function POST(
   const { id: companyId, leadId } = await params
   const supabase = await createClient()
   const profile = await getProfile(supabase)
-  if (profile?.role !== "super_admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  if (profile?.role !== "super_admin" && profile?.role !== "agency_member") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
   const admin = createAdminClient()
 

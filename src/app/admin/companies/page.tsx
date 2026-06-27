@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
+import { getProfile } from "@/lib/auth/getProfile"
+import { canViewFinancials } from "@/lib/auth/roles"
 import { CompaniesTable } from "@/components/admin/CompaniesTable"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/shared/EmptyState"
@@ -7,6 +9,8 @@ import { Plus, Building2 } from "lucide-react"
 
 export default async function CompaniesPage() {
   const supabase = await createClient()
+  const profile = await getProfile(supabase)
+  const showFinancials = canViewFinancials(profile)
 
   const { data: companies } = await supabase
     .from("companies")
@@ -53,7 +57,7 @@ export default async function CompaniesPage() {
         />
       ) : (
         <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-          <CompaniesTable companies={companiesWithCounts} />
+          <CompaniesTable companies={companiesWithCounts} canViewFinancials={showFinancials} />
         </div>
       )}
     </div>

@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/auth/getProfile"
+import { isAgencyStaff } from "@/lib/auth/roles"
 import { redirect } from "next/navigation"
 import { WebhookConfig } from "@/components/settings/WebhookConfig"
 import { CustomLeadFieldsEditor } from "@/components/settings/CustomLeadFieldsEditor"
@@ -10,7 +11,7 @@ import type { WebhookToken } from "@/types/database"
 export default async function AgencyIntegrationsPage() {
   const supabase = await createClient()
   const profile = await getProfile(supabase)
-  if (!profile || profile.role !== "super_admin") redirect("/login")
+  if (!profile || !isAgencyStaff(profile)) redirect("/login")
 
   const admin = createAdminClient()
   const { data: tokens } = await admin

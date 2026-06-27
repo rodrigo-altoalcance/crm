@@ -29,25 +29,32 @@ export async function proxy(request: NextRequest) {
     return supabaseResponse
   }
 
+  const isAgencyRole = role === "super_admin" || role === "agency_member"
+
   // Root path: redirect based on role
   if (pathname === "/") {
-    if (role === "super_admin") return NextResponse.redirect(new URL("/admin", origin))
+    if (isAgencyRole) return NextResponse.redirect(new URL("/admin", origin))
     return NextResponse.redirect(new URL("/dashboard", origin))
   }
 
   // Login page: authenticated users should not see it
   if (pathname === "/login") {
-    if (role === "super_admin") return NextResponse.redirect(new URL("/admin", origin))
+    if (isAgencyRole) return NextResponse.redirect(new URL("/admin", origin))
     return NextResponse.redirect(new URL("/dashboard", origin))
   }
 
-  // Admin: only super_admin allowed
-  if (pathname.startsWith("/admin") && role !== "super_admin") {
+  // Payments: only super_admin can access financial pages
+  if (pathname.match(/^\/admin\/companies\/[^/]+\/payments/) && role !== "super_admin") {
+    return NextResponse.redirect(new URL("/admin", origin))
+  }
+
+  // Admin: agency_staff allowed (super_admin + agency_member)
+  if (pathname.startsWith("/admin") && !isAgencyRole) {
     return NextResponse.redirect(new URL("/dashboard", origin))
   }
 
-  // Dashboard: super_admin needs impersonation cookie
-  if (pathname.startsWith("/dashboard") && role === "super_admin") {
+  // Dashboard: agency roles need impersonation cookie
+  if (pathname.startsWith("/dashboard") && isAgencyRole) {
     const impersonated = request.cookies.get("impersonated_company")
     if (!impersonated) {
       return NextResponse.redirect(new URL("/admin", origin))

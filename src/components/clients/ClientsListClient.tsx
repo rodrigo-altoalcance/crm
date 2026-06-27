@@ -18,7 +18,7 @@ interface ClientRow extends Company {
   lastActivity: string | null
 }
 
-export function ClientsListClient({ clients }: { clients: ClientRow[] }) {
+export function ClientsListClient({ clients, canViewFinancials = true }: { clients: ClientRow[]; canViewFinancials?: boolean }) {
   const [search, setSearch] = useState("")
   const [showModal, setShowModal] = useState(false)
   const router = useRouter()
@@ -70,7 +70,7 @@ export function ClientsListClient({ clients }: { clients: ClientRow[] }) {
               <TableRow>
                 <TableHead>Empresa</TableHead>
                 <TableHead>Estado</TableHead>
-                <TableHead>Plan</TableHead>
+                {canViewFinancials && <TableHead>Plan</TableHead>}
                 <TableHead>Usuarios activos</TableHead>
                 <TableHead>Última actividad</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
@@ -85,18 +85,20 @@ export function ClientsListClient({ clients }: { clients: ClientRow[] }) {
                   <TableCell>
                     <StatusBadge status={client.status} />
                   </TableCell>
-                  <TableCell>
-                    {client.monthly_fee != null ? (
-                      <span className="text-sm text-slate-700">
-                        {client.currency === "CLP"
-                          ? formatCLP(client.monthly_fee)
-                          : `USD ${client.monthly_fee.toLocaleString("es-CL")}`}{" "}
-                        / mes
-                      </span>
-                    ) : (
-                      <span className="text-sm text-slate-400">—</span>
-                    )}
-                  </TableCell>
+                  {canViewFinancials && (
+                    <TableCell>
+                      {client.monthly_fee != null ? (
+                        <span className="text-sm text-slate-700">
+                          {client.currency === "CLP"
+                            ? formatCLP(client.monthly_fee)
+                            : `USD ${client.monthly_fee.toLocaleString("es-CL")}`}{" "}
+                          / mes
+                        </span>
+                      ) : (
+                        <span className="text-sm text-slate-400">—</span>
+                      )}
+                    </TableCell>
+                  )}
                   <TableCell>
                     <span className="text-sm text-slate-700">{client.userCount}</span>
                   </TableCell>

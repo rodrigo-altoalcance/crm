@@ -9,18 +9,23 @@ import {
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
+import type { Role } from "@/types/database"
 
 const nav = [
-  { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { href: "/admin/companies", label: "Usuario Empresa", icon: Building2 },
-  { href: "/admin/leads", label: "Leads", icon: Zap },
-  { href: "/admin/tasks", label: "Tareas", icon: CheckSquare },
-  { href: "/admin/clients", label: "Clientes", icon: Users },
-  { href: "/admin/team", label: "Equipo", icon: UserCog },
-  { href: "/admin/settings", label: "Configuración", icon: Settings },
+  { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true, superAdminOnly: false },
+  { href: "/admin/companies", label: "Usuario Empresa", icon: Building2, superAdminOnly: false },
+  { href: "/admin/leads", label: "Leads", icon: Zap, superAdminOnly: false },
+  { href: "/admin/tasks", label: "Tareas", icon: CheckSquare, superAdminOnly: false },
+  { href: "/admin/clients", label: "Clientes", icon: Users, superAdminOnly: false },
+  { href: "/admin/team", label: "Equipo", icon: UserCog, superAdminOnly: true },
+  { href: "/admin/settings", label: "Configuración", icon: Settings, superAdminOnly: false },
 ]
 
-export function AdminSidebar() {
+interface AdminSidebarProps {
+  role: Role
+}
+
+export function AdminSidebar({ role }: AdminSidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
 
@@ -45,7 +50,7 @@ export function AdminSidebar() {
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {nav.map(({ href, label, icon: Icon, exact }) => {
+        {nav.filter(({ superAdminOnly }) => !superAdminOnly || role === "super_admin").map(({ href, label, icon: Icon, exact }) => {
           const active = exact ? pathname === href : pathname.startsWith(href)
           return (
             <Link

@@ -10,7 +10,7 @@ export async function GET(
   const { id: companyId } = await params
   const supabase = await createClient()
   const profile = await getProfile(supabase)
-  if (!profile || profile.role !== "super_admin") {
+  if (!profile || profile.role !== "super_admin" && profile.role !== "agency_member") {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 })
   }
 
@@ -31,7 +31,7 @@ export async function POST(
   const { id: companyId } = await params
   const supabase = await createClient()
   const profile = await getProfile(supabase)
-  if (!profile || profile.role !== "super_admin") {
+  if (!profile || profile.role !== "super_admin" && profile.role !== "agency_member") {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 })
   }
 
@@ -54,7 +54,7 @@ export async function PATCH(
   const { id: companyId } = await params
   const supabase = await createClient()
   const profile = await getProfile(supabase)
-  if (!profile || profile.role !== "super_admin") {
+  if (!profile || profile.role !== "super_admin" && profile.role !== "agency_member") {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 })
   }
 

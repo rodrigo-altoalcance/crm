@@ -6,7 +6,7 @@ import { getProfile } from "@/lib/auth/getProfile"
 export async function POST(request: Request) {
   const supabase = await createClient()
   const profile = await getProfile(supabase)
-  if (!profile || profile.role !== "super_admin") {
+  if (!profile || profile.role !== "super_admin" && profile.role !== "agency_member") {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 })
   }
 

@@ -20,9 +20,10 @@ import type { Company } from "@/types/database"
 
 interface CompaniesTableProps {
   companies: (Company & { _count?: { leads: number; profiles: number } })[]
+  canViewFinancials?: boolean
 }
 
-export function CompaniesTable({ companies }: CompaniesTableProps) {
+export function CompaniesTable({ companies, canViewFinancials = true }: CompaniesTableProps) {
   const router = useRouter()
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -63,7 +64,7 @@ export function CompaniesTable({ companies }: CompaniesTableProps) {
         <TableHeader>
           <TableRow>
             <TableHead>Empresa</TableHead>
-            <TableHead>Fee mensual</TableHead>
+            {canViewFinancials && <TableHead>Fee mensual</TableHead>}
             <TableHead>Estado</TableHead>
             <TableHead>Usuarios</TableHead>
             <TableHead className="w-12"></TableHead>
@@ -78,11 +79,13 @@ export function CompaniesTable({ companies }: CompaniesTableProps) {
                   {company.email && <p className="text-xs text-slate-500">{company.email}</p>}
                 </div>
               </TableCell>
-              <TableCell>
-                <span className="text-sm font-semibold text-slate-800">
-                  {company.monthly_fee ? formatCLP(company.monthly_fee) : "—"}
-                </span>
-              </TableCell>
+              {canViewFinancials && (
+                <TableCell>
+                  <span className="text-sm font-semibold text-slate-800">
+                    {company.monthly_fee ? formatCLP(company.monthly_fee) : "—"}
+                  </span>
+                </TableCell>
+              )}
               <TableCell>
                 <StatusBadge status={company.status} />
               </TableCell>
@@ -111,11 +114,13 @@ export function CompaniesTable({ companies }: CompaniesTableProps) {
                         <Edit className="h-4 w-4 mr-2" /> Editar
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href={`/admin/companies/${company.id}/payments`}>
-                        <CreditCard className="h-4 w-4 mr-2" /> Pagos
-                      </Link>
-                    </DropdownMenuItem>
+                    {canViewFinancials && (
+                      <DropdownMenuItem asChild>
+                        <Link href={`/admin/companies/${company.id}/payments`}>
+                          <CreditCard className="h-4 w-4 mr-2" /> Pagos
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem asChild>
                       <Link href={`/admin/companies/${company.id}/users`}>
                         <Users className="h-4 w-4 mr-2" /> Usuarios

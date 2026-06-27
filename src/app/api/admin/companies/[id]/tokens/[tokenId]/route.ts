@@ -10,7 +10,7 @@ export async function DELETE(
   const { id: companyId, tokenId } = await params
   const supabase = await createClient()
   const profile = await getProfile(supabase)
-  if (!profile || profile.role !== "super_admin") {
+  if (!profile || profile.role !== "super_admin" && profile.role !== "agency_member") {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 })
   }
 
@@ -32,7 +32,7 @@ export async function POST(
   const { id: companyId, tokenId } = await params
   const supabase = await createClient()
   const profile = await getProfile(supabase)
-  if (!profile || profile.role !== "super_admin") {
+  if (!profile || profile.role !== "super_admin" && profile.role !== "agency_member") {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 })
   }
 
