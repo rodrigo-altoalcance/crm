@@ -31,8 +31,10 @@ src/
 │   │   │   └── [id]/leads/     # Pipeline (Kanban+tabla) de la empresa — acceso directo sin impersonar
 │   │   │   └── [id]/team/      # Equipo de la empresa — invitar colaboradores desde admin
 │   │   │   └── [id]/integrations/ # Webhooks + campos personalizados empresa
-│   │   ├── leads/              # Leads globales de la agencia
-│   │   ├── clients/            # Leads cerrados + config de pagos
+│   │   ├── leads/              # Leads globales de la agencia (agency_leads)
+│   │   │   └── [id]/           # Detalle: botón "Convertir en cliente" si is_final=true
+│   │   ├── clients/            # Empresas clientes de la agencia (tabla companies)
+│   │   │   └── [companyId]/    # Ficha de cliente: header + historial de actividades
 │   │   └── settings/
 │   │       ├── emails/         # Templates: bienvenida + invitación + cobranza (Resend)
 │   │       └── integrations/   # Webhooks agencia + campos personalizados agencia
@@ -48,8 +50,14 @@ src/
 │       │   ├── companies/[companyId]/leads/            # CRUD leads empresa (admin directo)
 │       │   │   └── [leadId]/{stage,activities,tasks,custom-field-values}/
 │       │   ├── companies/[companyId]/team/             # Invitar/gestionar equipo empresa
+│       │   ├── companies/[companyId]/users/[userId]/           # PATCH perfil (full_name, role, phone)
+│       │   │   ├── resend-invite/                              # POST — reenviar invitación
+│       │   │   └── password/                                   # PATCH — cambiar contraseña (admin)
 │       │   ├── companies/[companyId]/custom-fields/    # CRUD campos personalizados empresa
 │       │   └── companies/[companyId]/column-preferences/ # Preferencias columnas (super_admin)
+│       │   ├── clients/                                  # GET lista, POST crear empresa cliente
+│       │   │   └── [companyId]/activities/               # GET+POST actividades de cliente
+│       │   │       └── [activityId]/                     # DELETE actividad
 │       │   └── agency/
 │       │       ├── tokens/            # CRUD tokens webhook agencia
 │       │       ├── leads/[id]/{stage,activities,tasks,custom-field-values}/
@@ -70,7 +78,7 @@ src/
 │       └── admin/test-email/   # POST — prueba de envío (solo super_admin)
 ├── components/
 │   ├── ui/                     # shadcn manual: button, card, dialog, dropdown-menu, etc.
-│   ├── admin/                  # CompanyForm, ClientPaymentPanel, AdminSidebar, InviteUserForm, etc.
+│   ├── admin/                  # CompanyForm, ClientPaymentPanel, AdminSidebar, InviteUserForm, CompanyUsersClient, etc.
 │   ├── leads/                  # LeadsKanban, LeadDetailPanel, LeadsTable, LeadsView, CloseLeadConfirmDialog
 │   ├── dashboard/              # DashboardSidebar, ImpersonationBanner
 │   ├── clients/                # ClientsTable, ClientRecordsPanel
@@ -161,7 +169,8 @@ Whitelists de referencia por tabla:
 - `custom_lead_fields`: `nombre, tipo, obligatorio, orden`
 - `lead_field_definitions`: `name, label, type, options, required, position`
 - `email_templates`: `name, subject, body_html, type, is_default`
-- `companies`: `name, monthly_fee, currency, payment_day, max_users, status, email, next_payment_date, org_name, org_email, org_phone, org_website`
+- `companies`: `name, monthly_fee, currency, payment_day, max_users, status, email, phone, address, website, next_payment_date, org_name, org_email, org_phone, org_website`
+- `profiles` (admin PATCH): `full_name, role, phone` — **excluir email** (no está en profiles, está en auth.users)
 
 ### 3. `createAdminClient()` bypasea RLS — requiere checks manuales
 
@@ -180,6 +189,7 @@ if (!lead) return NextResponse.json({ error: "Lead no encontrado" }, { status: 4
 
 Rutas que usan `createAdminClient()` (requieren especial atención):
 - `/api/admin/companies/[id]/leads/**` — todas filtran por `company_id`
+- `/api/admin/companies/[id]/users/[userId]/**` — verifican que el perfil pertenece a `company_id` antes de mutar
 - `/api/admin/agency/leads/**` — agency no tiene company_id, pero sí super_admin check
 - `/api/webhook/leads/[token]` y `/api/webhook/agency/[token]` — público, el token provee el company_id
 
@@ -260,6 +270,7 @@ notifications                id, user_id(FK→auth.users CASCADE), type('task_as
 custom_lead_fields           id, context('agency'|'company'), company_id(null si agencia), nombre, tipo('texto'|'numero'|'fecha'), obligatorio, orden, created_at
 custom_lead_field_values     id, field_id(FK→custom_lead_fields), lead_id(UUID sin FK), valor, created_at
 user_lead_column_preferences id, user_id, context, company_id, column_key, visible, created_at
+agency_client_activities     id, company_id(FK→companies CASCADE), user_id(FK→profiles SET NULL), type('reunion'|'llamada'|'nota'|'acuerdo'|'reporte'|'otro'), title, description, activity_date(date), created_at
 ```
 
 ## Permisos sellers (profiles.permissions jsonb)
@@ -308,6 +319,24 @@ await sendInvitationEmail({ to, inviteeName, companyName, inviteLink })
 - La UI usa el término **"Usuario Empresa"** (no "Empresas") en menú, títulos y breadcrumbs
 - El módulo gestiona: datos de la empresa, pagos, usuarios, tokens webhook, **pipeline y equipo**
 - Flujo de activación: admin envía invitación → Supabase genera invite link → se envía email de invitación → usuario hace clic → crea contraseña → cuenta activada
+
+### Gestión de usuarios desde admin (`/admin/companies/[id]/users`)
+- Componente cliente: `CompanyUsersClient` (`src/components/admin/CompanyUsersClient.tsx`)
+- La page.tsx carga perfiles con `createClient()` y complementa con datos de `auth.users` via `admin.auth.admin.listUsers()` → tipo `UserWithAuth = Profile & { email: string; email_confirmed_at: string | null }`
+- La tabla muestra: Nombre, **Email** (texto seleccionable), Rol, Teléfono, Miembro desde, Acciones
+- Badge **"Pendiente"** (amber) junto al email si `email_confirmed_at === null`
+- **Botón "Reenviar invitación"** — solo visible si `email_confirmed_at === null`; llama a `POST /api/admin/companies/[id]/users/[userId]/resend-invite` → usa `generateInviteLink()` (recovery link si el usuario ya existe) + `sendInvitationEmail()`
+- **Botón "Editar"** — abre `Dialog` con campos: Nombre completo (editable), Email (readonly), Rol (company_admin | seller), Teléfono → `PATCH /api/admin/companies/[id]/users/[userId]`
+- **Sección "Cambiar contraseña"** dentro del mismo modal (visualmente separada por `<Separator />`, opcional) → `PATCH /api/admin/companies/[id]/users/[userId]/password` — usa `admin.auth.admin.updateUserById(userId, { password })`; valida mínimo 8 caracteres
+- Actualización optimista: al guardar edición, `setUsers()` actualiza la tabla sin `router.refresh()`
+
+API routes (todas requieren `super_admin`, usan `createAdminClient()`):
+```
+POST   /api/admin/companies/[id]/users/[userId]/resend-invite → reenvía email de invitación
+PATCH  /api/admin/companies/[id]/users/[userId]               → edita perfil { full_name, role, phone }
+PATCH  /api/admin/companies/[id]/users/[userId]/password      → cambia contraseña (min 8 chars)
+```
+Todas verifican que `profiles.company_id = id` (anti-IDOR) antes de cualquier mutación.
 
 ### Pipeline de empresa desde admin (`/admin/companies/[id]/leads`)
 - Acceso directo al Kanban/tabla de leads de una empresa **sin impersonar**
@@ -697,6 +726,36 @@ export function LoginForm() {
 ```
 Archivos afectados y corregidos: `LoginForm.tsx`, `AdminSidebar.tsx`, `DashboardSidebar.tsx`, `activar-cuenta/page.tsx`
 
+## Módulo /admin/clients — Clientes de la agencia
+
+El módulo muestra la tabla `companies` (no leads cerrados — eso era el diseño anterior).
+
+### Flujos de creación de cliente
+1. **Directo** desde `/admin/clients` → botón "Nuevo cliente" → `NewClientModal`
+2. **Conversión** desde detalle de agency_lead en etapa `is_final=true` → banner verde con `ConvertToClientButton` → mismo `NewClientModal` con datos prellenados del lead
+
+### Componentes
+- `ClientsListClient` (`src/components/clients/`) — tabla con buscador en memoria
+- `NewClientModal` — Dialog con 2 secciones: datos empresa + usuario admin (obligatorio)
+- `ClientActivitiesPanel` — historial + formulario inline de actividades
+- `ConvertToClientButton` — botón + modal prefillado desde agency_lead
+
+### API routes (todas requieren super_admin, createAdminClient())
+```
+GET    /api/admin/clients                                    → lista companies
+POST   /api/admin/clients                                    → crear company + generateInviteLink + sendInvitationEmail
+GET    /api/admin/clients/[companyId]/activities             → lista actividades de la empresa
+POST   /api/admin/clients/[companyId]/activities             → crear actividad { type, title, description, activity_date }
+DELETE /api/admin/clients/[companyId]/activities/[activityId] → eliminar (verifica company_id anti-IDOR)
+```
+
+### Ficha de cliente (`/admin/clients/[companyId]`)
+Header con nombre, StatusBadge, fee mensual, y botones de acceso rápido:
+- Pipeline → `/admin/companies/[id]/leads`
+- Equipo → `/admin/companies/[id]/team`
+- Usuarios → `/admin/companies/[id]/users`
+- Editar empresa → `/admin/companies/[id]/edit`
+
 ## Migraciones aplicadas
 | # | Descripción |
 |---|-------------|
@@ -710,6 +769,7 @@ Archivos afectados y corregidos: `LoginForm.tsx`, `AdminSidebar.tsx`, `Dashboard
 | 008 | custom_lead_fields + custom_lead_field_values + user_lead_column_preferences |
 | 009 | notifications |
 | 010 | Google Calendar: tasks.due_date y agency_tasks.due_date a TIMESTAMPTZ, tabla user_google_calendar_tokens, columna google_calendar_event_id en ambas tablas de tareas |
+| 011 | agency_client_activities — historial de actividades por empresa cliente |
 
 ## Sistema de notificaciones in-app
 

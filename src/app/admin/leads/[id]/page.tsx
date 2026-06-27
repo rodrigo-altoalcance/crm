@@ -7,6 +7,7 @@ import { ArrowLeft } from "lucide-react"
 import { LeadDetailPanel } from "@/components/leads/LeadDetailPanel"
 import { LeadTasksPanel } from "@/components/leads/LeadTasksPanel"
 import { LeadHistoryPanel } from "@/components/leads/LeadHistoryPanel"
+import { ConvertToClientButton } from "@/components/clients/ConvertToClientButton"
 import type { Lead, LeadStage, Task } from "@/types/database"
 
 export default async function AdminLeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -88,11 +89,33 @@ export default async function AdminLeadDetailPage({ params }: { params: Promise<
     assigned_profile: t.assigned_profile ?? undefined,
   }))
 
+  const isFinalStage = agencyLead.stage?.is_final === true
+
   return (
     <div className="p-8">
       <Link href="/admin/leads" className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 mb-6">
         <ArrowLeft className="w-4 h-4" /> Volver a Leads
       </Link>
+
+      {isFinalStage && (
+        <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold text-emerald-800">Lead cerrado</p>
+            <p className="text-xs text-emerald-600 mt-0.5">
+              Este lead está en una etapa final. Puedes convertirlo en cliente de la agencia.
+            </p>
+          </div>
+          <ConvertToClientButton
+            leadData={{
+              companyName: (agencyLead.custom_fields as any)?.empresa || null,
+              email: agencyLead.email,
+              phone: agencyLead.phone,
+              firstName: agencyLead.first_name,
+              lastName: agencyLead.last_name,
+            }}
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-2">
