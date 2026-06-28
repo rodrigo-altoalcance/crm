@@ -3,19 +3,27 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getProfile } from "@/lib/auth/getProfile"
 
-export async function GET() {
+export async function GET(request: Request) {
   const supabase = await createClient()
   const profile = await getProfile(supabase)
   if (profile?.role !== "super_admin" && profile?.role !== "agency_member") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
+  const { searchParams } = new URL(request.url)
+  const rawDays = parseInt(searchParams.get("days") || "7")
+  const days = isNaN(rawDays) || rawDays < 1 ? 7 : Math.min(rawDays, 90)
+
+  const since = new Date()
+  since.setDate(since.getDate() - days)
+  const sinceIso = since.toISOString()
+
   const admin = createAdminClient()
 
   const [{ data: companies }, { data: leads }, { data: leadActs }] = await Promise.all([
     admin.from("companies").select("id, name, status"),
     admin.from("leads").select("id, company_id"),
-    admin.from("lead_activities").select("lead_id"),
+    admin.from("lead_activities").select("lead_id").gte("created_at", sinceIso),
   ])
 
   // Map lead_id -> company_id
@@ -24,7 +32,7 @@ export async function GET() {
     if (l.id && l.company_id) leadToCompany[l.id] = l.company_id
   }
 
-  // Count lead_activities per company
+  // Count lead_activities per company within the period
   const leadActsByCompany: Record<string, number> = {}
   for (const act of leadActs || []) {
     const companyId = act.lead_id ? leadToCompany[act.lead_id] : null
@@ -36,6 +44,7 @@ export async function GET() {
   const { data: agencyActs, error: agencyError } = await admin
     .from("agency_client_activities")
     .select("company_id")
+    .gte("created_at", sinceIso)
   if (!agencyError) {
     for (const act of agencyActs || []) {
       if (act.company_id) agencyActsByCompany[act.company_id] = (agencyActsByCompany[act.company_id] || 0) + 1
