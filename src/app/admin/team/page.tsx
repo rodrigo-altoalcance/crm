@@ -8,13 +8,13 @@ import type { Profile } from "@/types/database"
 export default async function AdminTeamPage() {
   const supabase = await createClient()
   const profile = await getProfile(supabase)
-  if (!profile || profile.role !== "super_admin") redirect("/login")
+  if (!profile || profile.role !== "super_admin") redirect("/admin")
 
   const admin = createAdminClient()
   const { data: members } = await admin
     .from("profiles")
     .select("*")
-    .eq("role", "super_admin")
+    .in("role", ["super_admin", "agency_member"])
     .order("created_at")
 
   return (
@@ -22,7 +22,7 @@ export default async function AdminTeamPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-slate-900">Equipo de la agencia</h1>
         <p className="text-sm text-slate-500 mt-1">
-          {members?.length || 0} administrador{(members?.length || 0) !== 1 ? "es" : ""} con acceso al panel
+          {members?.length || 0} miembro{(members?.length || 0) !== 1 ? "s" : ""} con acceso al panel
         </p>
       </div>
 

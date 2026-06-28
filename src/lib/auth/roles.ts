@@ -4,6 +4,18 @@ export function isSuperAdmin(profile: Profile | null): boolean {
   return profile?.role === "super_admin"
 }
 
+export function isAgencyMember(profile: Profile | null): boolean {
+  return profile?.role === "agency_member"
+}
+
+export function isAgencyStaff(profile: Profile | null): boolean {
+  return profile?.role === "super_admin" || profile?.role === "agency_member"
+}
+
+export function canViewFinancials(profile: Profile | null): boolean {
+  return profile?.role === "super_admin"
+}
+
 export function isCompanyAdmin(profile: Profile | null): boolean {
   return profile?.role === "company_admin"
 }

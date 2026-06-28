@@ -10,7 +10,7 @@ export async function GET(
   const { id: companyId, leadId } = await params
   const supabase = await createClient()
   const profile = await getProfile(supabase)
-  if (profile?.role !== "super_admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  if (profile?.role !== "super_admin" && profile?.role !== "agency_member") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
   const admin = createAdminClient()
   const { data, error } = await admin
@@ -32,7 +32,7 @@ export async function PATCH(
   const { id: companyId, leadId } = await params
   const supabase = await createClient()
   const profile = await getProfile(supabase)
-  if (profile?.role !== "super_admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  if (profile?.role !== "super_admin" && profile?.role !== "agency_member") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
   const body = await request.json()
   const { first_name, last_name, email, phone, message, source, assigned_to, scheduled_at, stage_id } = body
@@ -56,7 +56,7 @@ export async function DELETE(
   const { id: companyId, leadId } = await params
   const supabase = await createClient()
   const profile = await getProfile(supabase)
-  if (profile?.role !== "super_admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  if (profile?.role !== "super_admin" && profile?.role !== "agency_member") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
   const admin = createAdminClient()
   const { error } = await admin

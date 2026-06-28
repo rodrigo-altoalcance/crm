@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/auth/getProfile"
+import { isAgencyStaff } from "@/lib/auth/roles"
 import { notFound, redirect } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
@@ -15,7 +16,7 @@ export default async function AdminEditPermissionsPage({
   const { id: companyId, userId } = await params
   const supabase = await createClient()
   const profile = await getProfile(supabase)
-  if (!profile || profile.role !== "super_admin") redirect("/login")
+  if (!profile || !isAgencyStaff(profile)) redirect("/login")
 
   const admin = createAdminClient()
   const [{ data: company }, { data: member }] = await Promise.all([

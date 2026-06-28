@@ -6,7 +6,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const { id: companyId } = await params
   const supabase = await createClient()
   const profile = await getProfile(supabase)
-  if (!profile || profile.role !== "super_admin") return NextResponse.json({ error: "No autorizado" }, { status: 403 })
+  if (!profile || (profile.role !== "super_admin" && profile.role !== "agency_member")) return NextResponse.json({ error: "No autorizado" }, { status: 403 })
 
   const { data } = await supabase
     .from("user_lead_column_preferences")
@@ -24,7 +24,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { id: companyId } = await params
   const supabase = await createClient()
   const profile = await getProfile(supabase)
-  if (!profile || profile.role !== "super_admin") return NextResponse.json({ error: "No autorizado" }, { status: 403 })
+  if (!profile || (profile.role !== "super_admin" && profile.role !== "agency_member")) return NextResponse.json({ error: "No autorizado" }, { status: 403 })
 
   const { column_key, visible } = await request.json()
   if (!column_key) return NextResponse.json({ error: "column_key requerido" }, { status: 400 })

@@ -7,7 +7,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const { id: companyId } = await params
   const supabase = await createClient()
   const profile = await getProfile(supabase)
-  if (!profile || profile.role !== "super_admin") return NextResponse.json({ error: "No autorizado" }, { status: 403 })
+  if (!profile || (profile.role !== "super_admin" && profile.role !== "agency_member")) return NextResponse.json({ error: "No autorizado" }, { status: 403 })
 
   const admin = createAdminClient()
   const { data } = await admin
@@ -24,7 +24,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { id: companyId } = await params
   const supabase = await createClient()
   const profile = await getProfile(supabase)
-  if (!profile || profile.role !== "super_admin") return NextResponse.json({ error: "No autorizado" }, { status: 403 })
+  if (!profile || (profile.role !== "super_admin" && profile.role !== "agency_member")) return NextResponse.json({ error: "No autorizado" }, { status: 403 })
 
   const { nombre, tipo, obligatorio } = await request.json()
   if (!nombre?.trim() || !tipo) return NextResponse.json({ error: "Nombre y tipo son requeridos" }, { status: 400 })

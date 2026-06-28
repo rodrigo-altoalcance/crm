@@ -8,7 +8,7 @@ const AGENCY_KEYS = ["agency_name", "agency_address", "agency_phone", "agency_we
 export async function GET() {
   const supabase = await createClient()
   const profile = await getProfile(supabase)
-  if (!profile || profile.role !== "super_admin") {
+  if (!profile || profile.role !== "super_admin" && profile.role !== "agency_member") {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 })
   }
 

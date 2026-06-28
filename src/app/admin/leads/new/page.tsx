@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getProfile } from "@/lib/auth/getProfile"
+import { isAgencyStaff } from "@/lib/auth/roles"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
@@ -10,12 +11,12 @@ import type { LeadStage } from "@/types/database"
 export default async function AdminNewLeadPage() {
   const supabase = await createClient()
   const profile = await getProfile(supabase)
-  if (!profile || profile.role !== "super_admin") redirect("/login")
+  if (!profile || !isAgencyStaff(profile)) redirect("/login")
 
   const admin = createAdminClient()
   const [{ data: agencyStages }, { data: teamMembers }] = await Promise.all([
     admin.from("agency_stages").select("*").order("position"),
-    supabase.from("profiles").select("id, full_name, avatar_url, role, permissions, phone, company_id, created_at").eq("role", "super_admin"),
+    supabase.from("profiles").select("id, full_name, avatar_url, role, permissions, phone, company_id, created_at").in("role", ["super_admin", "agency_member"]),
   ])
 
   const stages: LeadStage[] = (agencyStages || []).map((s) => ({

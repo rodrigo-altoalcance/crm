@@ -8,7 +8,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const { id } = await params
   const supabase = await createClient()
   const profile = await getProfile(supabase)
-  if (!profile || profile.role !== "super_admin") {
+  if (!profile || profile.role !== "super_admin" && profile.role !== "agency_member") {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 })
   }
 
@@ -27,7 +27,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { id } = await params
   const supabase = await createClient()
   const profile = await getProfile(supabase)
-  if (!profile || profile.role !== "super_admin") {
+  if (!profile || profile.role !== "super_admin" && profile.role !== "agency_member") {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 })
   }
 

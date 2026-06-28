@@ -23,12 +23,14 @@ import type { Profile, Role } from "@/types/database"
 
 const roleLabels: Record<Role, string> = {
   super_admin: "Super Admin",
+  agency_member: "Colaborador",
   company_admin: "Administrador",
   seller: "Vendedor",
 }
 
 const roleVariants: Record<Role, "default" | "secondary" | "info"> = {
   super_admin: "default",
+  agency_member: "secondary",
   company_admin: "info",
   seller: "secondary",
 }

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getProfile } from "@/lib/auth/getProfile"
+import { isAgencyStaff } from "@/lib/auth/roles"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -11,7 +12,7 @@ import type { Lead, LeadStage } from "@/types/database"
 export default async function AdminLeadsPage() {
   const supabase = await createClient()
   const profile = await getProfile(supabase)
-  if (!profile || profile.role !== "super_admin") redirect("/login")
+  if (!profile || !isAgencyStaff(profile)) redirect("/login")
 
   const admin = createAdminClient()
   const [{ data: agencyStages }, { data: agencyLeads }, { data: teamMembers }, { data: recentActivities }, { data: customFields }, { data: columnPrefsRows }] = await Promise.all([
@@ -20,7 +21,7 @@ export default async function AdminLeadsPage() {
       .from("agency_leads")
       .select("*, stage:agency_stages(*), assigned_profile:profiles!assigned_to(id, full_name, avatar_url)")
       .order("created_at", { ascending: false }),
-    supabase.from("profiles").select("id, full_name, avatar_url, role").eq("role", "super_admin"),
+    supabase.from("profiles").select("id, full_name, avatar_url, role").in("role", ["super_admin", "agency_member"]),
     admin
       .from("agency_lead_activities")
       .select("lead_id, description, type, created_at")

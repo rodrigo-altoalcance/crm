@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
+import { getProfile } from "@/lib/auth/getProfile"
+import { canViewFinancials } from "@/lib/auth/roles"
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -10,6 +12,8 @@ import ImpersonateButton from "./ImpersonateButton"
 export default async function CompanyDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
+  const profile = await getProfile(supabase)
+  const showFinancials = canViewFinancials(profile)
 
   const { data: company } = await supabase
     .from("companies")
@@ -22,7 +26,9 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
   const [{ count: leadsCount }, { count: usersCount }, { data: recentPayments }] = await Promise.all([
     supabase.from("leads").select("*", { count: "exact", head: true }).eq("company_id", id),
     supabase.from("profiles").select("*", { count: "exact", head: true }).eq("company_id", id),
-    supabase.from("payments").select("*").eq("company_id", id).order("paid_at", { ascending: false }).limit(3),
+    showFinancials
+      ? supabase.from("payments").select("*").eq("company_id", id).order("paid_at", { ascending: false }).limit(3)
+      : Promise.resolve({ data: null, error: null }),
   ])
 
   return (
@@ -51,12 +57,14 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-        <div className="bg-white rounded-xl border p-5 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Fee mensual</p>
-          <p className="mt-2 text-2xl font-bold text-slate-900">
-            {company.monthly_fee ? formatCLP(company.monthly_fee) : "—"}
-          </p>
-        </div>
+        {showFinancials && (
+          <div className="bg-white rounded-xl border p-5 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Fee mensual</p>
+            <p className="mt-2 text-2xl font-bold text-slate-900">
+              {company.monthly_fee ? formatCLP(company.monthly_fee) : "—"}
+            </p>
+          </div>
+        )}
         <div className="bg-white rounded-xl border p-5 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total leads</p>
           <p className="mt-2 text-2xl font-bold text-slate-900">{leadsCount || 0}</p>
@@ -68,28 +76,30 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl border p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Últimos pagos</h2>
-            <Button asChild variant="outline" size="sm">
-              <Link href={`/admin/companies/${id}/payments`}>
-                <CreditCard className="w-4 h-4" /> Ver todos
-              </Link>
-            </Button>
-          </div>
-          {recentPayments && recentPayments.length > 0 ? (
-            <div className="space-y-2">
-              {recentPayments.map((p) => (
-                <div key={p.id} className="flex justify-between py-2 border-b last:border-0">
-                  <span className="text-sm text-slate-600">{formatDate(p.paid_at)}</span>
-                  <span className="text-sm font-semibold text-slate-800">{formatCLP(p.amount)}</span>
-                </div>
-              ))}
+        {showFinancials && (
+          <div className="bg-white rounded-xl border p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Últimos pagos</h2>
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/admin/companies/${id}/payments`}>
+                  <CreditCard className="w-4 h-4" /> Ver todos
+                </Link>
+              </Button>
             </div>
-          ) : (
-            <p className="text-sm text-slate-500">No hay pagos registrados</p>
-          )}
-        </div>
+            {recentPayments && recentPayments.length > 0 ? (
+              <div className="space-y-2">
+                {recentPayments.map((p) => (
+                  <div key={p.id} className="flex justify-between py-2 border-b last:border-0">
+                    <span className="text-sm text-slate-600">{formatDate(p.paid_at)}</span>
+                    <span className="text-sm font-semibold text-slate-800">{formatCLP(p.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">No hay pagos registrados</p>
+            )}
+          </div>
+        )}
 
         <div className="bg-white rounded-xl border p-6 shadow-sm">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-4">Acciones rápidas</h2>
@@ -106,12 +116,14 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
                 <span className="text-xs">Equipo</span>
               </Link>
             </Button>
-            <Button asChild variant="outline" className="h-auto py-4 flex-col gap-2">
-              <Link href={`/admin/companies/${id}/payments`}>
-                <CreditCard className="w-5 h-5 text-indigo-600" />
-                <span className="text-xs">Pagos</span>
-              </Link>
-            </Button>
+            {showFinancials && (
+              <Button asChild variant="outline" className="h-auto py-4 flex-col gap-2">
+                <Link href={`/admin/companies/${id}/payments`}>
+                  <CreditCard className="w-5 h-5 text-indigo-600" />
+                  <span className="text-xs">Pagos</span>
+                </Link>
+              </Button>
+            )}
             <Button asChild variant="outline" className="h-auto py-4 flex-col gap-2">
               <Link href={`/admin/companies/${id}/users`}>
                 <Users className="w-5 h-5 text-indigo-600" />

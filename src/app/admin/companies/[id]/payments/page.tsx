@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
-import { notFound } from "next/navigation"
+import { getProfile } from "@/lib/auth/getProfile"
+import { redirect, notFound } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import { formatDate } from "@/lib/utils"
@@ -21,6 +22,8 @@ export default async function CompanyPaymentsPage({
 }) {
   const { id } = await params
   const supabase = await createClient()
+  const profile = await getProfile(supabase)
+  if (!profile || profile.role !== "super_admin") redirect("/admin")
 
   const { data: company } = await supabase
     .from("companies")

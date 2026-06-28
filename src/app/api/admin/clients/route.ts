@@ -8,7 +8,7 @@ import { sendInvitationEmail } from "@/lib/email/invitation"
 export async function GET() {
   const supabase = await createClient()
   const profile = await getProfile(supabase)
-  if (profile?.role !== "super_admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  if (profile?.role !== "super_admin" && profile?.role !== "agency_member") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
   const admin = createAdminClient()
   const { data, error } = await admin.from("companies").select("*").order("created_at", { ascending: false })
@@ -19,7 +19,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const supabase = await createClient()
   const profile = await getProfile(supabase)
-  if (profile?.role !== "super_admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  if (profile?.role !== "super_admin" && profile?.role !== "agency_member") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
   const admin = createAdminClient()
   const body = await request.json()

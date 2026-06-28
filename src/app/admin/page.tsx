@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
+import { getProfile } from "@/lib/auth/getProfile"
+import { canViewFinancials } from "@/lib/auth/roles"
 import { StatCard } from "@/components/admin/StatCard"
 import { formatCLP, formatDate } from "@/lib/utils"
 import { Building2, Users, Zap, CreditCard } from "lucide-react"
@@ -7,6 +9,8 @@ import { Badge } from "@/components/ui/badge"
 
 export default async function AdminDashboard() {
   const supabase = await createClient()
+  const profile = await getProfile(supabase)
+  const showFinancials = canViewFinancials(profile)
 
   const { data: finalStages } = await supabase
     .from("lead_stages")
@@ -27,12 +31,16 @@ export default async function AdminDashboard() {
     finalStageIds.length > 0
       ? supabase.from("leads").select("id", { count: "exact", head: true }).in("stage_id", finalStageIds)
       : Promise.resolve({ count: 0, data: null, error: null, status: 200, statusText: "OK" }),
-    supabase.from("payments").select("*, company:companies(name)").order("paid_at", { ascending: false }).limit(5),
-    supabase.from("companies")
-      .select("id, name, monthly_fee, currency, next_payment_date")
-      .not("next_payment_date", "is", null)
-      .order("next_payment_date", { ascending: true })
-      .limit(5),
+    showFinancials
+      ? supabase.from("payments").select("*, company:companies(name)").order("paid_at", { ascending: false }).limit(5)
+      : Promise.resolve({ data: null, error: null }),
+    showFinancials
+      ? supabase.from("companies")
+          .select("id, name, monthly_fee, currency, next_payment_date")
+          .not("next_payment_date", "is", null)
+          .order("next_payment_date", { ascending: true })
+          .limit(5)
+      : Promise.resolve({ data: null, error: null }),
   ])
 
   const monthlyRevenue = companies?.reduce((sum, c) => sum + (c.monthly_fee || 0), 0) || 0
@@ -50,11 +58,13 @@ export default async function AdminDashboard() {
           value={companies?.length || 0}
           icon={<Building2 className="w-5 h-5" />}
         />
-        <StatCard
-          title="Ingresos mensuales"
-          value={formatCLP(monthlyRevenue)}
-          icon={<CreditCard className="w-5 h-5" />}
-        />
+        {showFinancials && (
+          <StatCard
+            title="Ingresos mensuales"
+            value={formatCLP(monthlyRevenue)}
+            icon={<CreditCard className="w-5 h-5" />}
+          />
+        )}
         <StatCard
           title="Total leads"
           value={totalLeads || 0}
@@ -67,57 +77,59 @@ export default async function AdminDashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl border p-6 shadow-sm">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-4">
-            Próximos pagos
-          </h2>
-          {upcomingPayments && upcomingPayments.length > 0 ? (
-            <div className="space-y-3">
-              {upcomingPayments.map((company) => (
-                <Link
-                  key={company.id}
-                  href={`/admin/clients`}
-                  className="flex items-center justify-between py-2 hover:bg-slate-50 rounded-lg px-2 -mx-2 transition-colors"
-                >
-                  <span className="text-sm font-medium text-slate-800">{company.name}</span>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-slate-900">
-                      {formatCLP(company.monthly_fee || 0)}
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      {company.next_payment_date ? formatDate(company.next_payment_date) : "Sin fecha"}
-                    </p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-slate-500">No hay pagos próximos</p>
-          )}
-        </div>
+      {showFinancials && (
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <div className="bg-white rounded-xl border p-6 shadow-sm">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-4">
+              Próximos pagos
+            </h2>
+            {upcomingPayments && upcomingPayments.length > 0 ? (
+              <div className="space-y-3">
+                {upcomingPayments.map((company) => (
+                  <Link
+                    key={company.id}
+                    href={`/admin/clients`}
+                    className="flex items-center justify-between py-2 hover:bg-slate-50 rounded-lg px-2 -mx-2 transition-colors"
+                  >
+                    <span className="text-sm font-medium text-slate-800">{company.name}</span>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-slate-900">
+                        {formatCLP(company.monthly_fee || 0)}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {company.next_payment_date ? formatDate(company.next_payment_date) : "Sin fecha"}
+                      </p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">No hay pagos próximos</p>
+            )}
+          </div>
 
-        <div className="bg-white rounded-xl border p-6 shadow-sm">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-4">
-            Últimos pagos registrados
-          </h2>
-          {recentPayments && recentPayments.length > 0 ? (
-            <div className="space-y-3">
-              {recentPayments.map((payment: any) => (
-                <div key={payment.id} className="flex items-center justify-between py-2">
-                  <div>
-                    <p className="text-sm font-medium text-slate-800">{payment.company?.name}</p>
-                    <p className="text-xs text-slate-500">{formatDate(payment.paid_at)}</p>
+          <div className="bg-white rounded-xl border p-6 shadow-sm">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-4">
+              Últimos pagos registrados
+            </h2>
+            {recentPayments && recentPayments.length > 0 ? (
+              <div className="space-y-3">
+                {recentPayments.map((payment: any) => (
+                  <div key={payment.id} className="flex items-center justify-between py-2">
+                    <div>
+                      <p className="text-sm font-medium text-slate-800">{payment.company?.name}</p>
+                      <p className="text-xs text-slate-500">{formatDate(payment.paid_at)}</p>
+                    </div>
+                    <Badge variant="success">{formatCLP(payment.amount)}</Badge>
                   </div>
-                  <Badge variant="success">{formatCLP(payment.amount)}</Badge>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-slate-500">No hay pagos registrados</p>
-          )}
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">No hay pagos registrados</p>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

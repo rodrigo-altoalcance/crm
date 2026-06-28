@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/auth/getProfile"
+import { isAgencyStaff } from "@/lib/auth/roles"
 import { redirect } from "next/navigation"
 import { StagesEditor } from "@/components/settings/StagesEditor"
 import { SeedAgencyStagesButton } from "./SeedAgencyStagesButton"
@@ -9,7 +10,7 @@ import type { LeadStage } from "@/types/database"
 export default async function AgencyStagesPage() {
   const supabase = await createClient()
   const profile = await getProfile(supabase)
-  if (!profile || profile.role !== "super_admin") redirect("/login")
+  if (!profile || !isAgencyStaff(profile)) redirect("/login")
 
   const admin = createAdminClient()
   const { data: stages } = await admin

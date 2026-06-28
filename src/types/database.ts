@@ -1,4 +1,4 @@
-export type Role = "super_admin" | "company_admin" | "seller"
+export type Role = "super_admin" | "company_admin" | "seller" | "agency_member"
 export type LeadSource = "meta" | "calendly" | "manual"
 export type TaskPriority = "low" | "medium" | "high"
 export type TaskStatus = "pending" | "in_progress" | "completed"
