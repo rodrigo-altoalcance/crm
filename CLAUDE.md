@@ -91,7 +91,7 @@ src/
 │       │   │       └── [activityId]/                     # DELETE actividad
 │       │   ├── dashboard/
 │       │   │   ├── leads-by-company/  # GET ?days=7|15|30 — leads abiertos/cerrados por empresa
-│       │   │   └── activity-ranking/  # GET — top 10 empresas por actividad total
+│       │   │   └── activity-ranking/  # GET ?days=7|15|30 — top 10 empresas por actividad total
 │       │   └── agency/
 │       │       ├── tokens/            # CRUD tokens webhook agencia
 │       │       ├── leads/[id]/{stage,activities,tasks,custom-field-values}/
@@ -932,22 +932,26 @@ const pad = (n) => String(n).padStart(2, "0")
 ## Dashboard admin — widgets de analítica
 
 Ambos widgets son visibles para `super_admin` y `agency_member` (no contienen datos financieros).
-Ubicados en `src/app/admin/page.tsx` debajo de las secciones de pagos.
+Ubicados en `src/app/admin/page.tsx` debajo de las secciones de pagos, en grid `xl:grid-cols-2`.
+Ambos tienen selector de período **7 / 15 / 30 días** con fetch client-side (sin recarga de página).
+`recharts` agregado como dependencia del proyecto para estos widgets.
 
 ### Widget 1 — Gráfico de leads por cliente (`LeadsByCompanyChart`)
 - Componente: `src/components/admin/LeadsByCompanyChart.tsx` — `"use client"`
-- API: `GET /api/admin/dashboard/leads-by-company?days=7` (también acepta 15 y 30)
-- BarChart apilado de recharts: azul (indigo) = abiertos, verde (emerald) = cerrados
-- Selector de período en el encabezado: cambia datos con fetch client-side sin recargar la página
+- API: `GET /api/admin/dashboard/leads-by-company?days=N`
+- BarChart apilado de recharts: indigo = leads abiertos (`is_final=false`), emerald = leads cerrados (`is_final=true`)
+- Tooltip muestra nombre empresa, abiertos, cerrados y total
 - Empresas sin leads en el período no aparecen en el gráfico
 
 ### Widget 2 — Ranking de actividad (`ActivityRankingWidget`)
 - Componente: `src/components/admin/ActivityRankingWidget.tsx` — `"use client"`
-- API: `GET /api/admin/dashboard/activity-ranking`
-- Top 10 empresas por actividad total (lead_activities + agency_client_activities)
-- Cada fila: posición, nombre, StatusBadge, barra de progreso proporcional, total + desglose
-- Si `agency_client_activities` no existe, la API maneja el error gracefully y cuenta solo lead_activities
-- Usa `recharts` (agregado como dependencia en esta feature)
+- API: `GET /api/admin/dashboard/activity-ranking?days=N`
+- Top 10 empresas por actividad total en el período seleccionado
+- **Qué cuenta**: son acciones de la agencia, no del cliente
+  - **"en leads"** → eventos en `lead_activities` de los leads de esa empresa (cambios de etapa, notas, comentarios, tareas completadas, etc.)
+  - **"en cuenta"** → actividades manuales en `agency_client_activities` para esa empresa (reuniones, llamadas, notas de cuenta desde `/admin/clients/[id]`)
+- Cada fila: posición, nombre, StatusBadge, barra de progreso proporcional al máximo, total + desglose
+- Si `agency_client_activities` no existe aún, la API maneja el error gracefully y cuenta solo `lead_activities`
 
 ## Convenciones UI
 - Sidebar oscuro (`#0F172A`), accent `#6366F1` (indigo-500), fondo `#F8FAFC`
