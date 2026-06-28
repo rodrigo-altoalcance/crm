@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/auth/getProfile"
 import { canViewFinancials } from "@/lib/auth/roles"
 import { StatCard } from "@/components/admin/StatCard"
+import { LeadsByCompanyChart } from "@/components/admin/LeadsByCompanyChart"
+import { ActivityRankingWidget } from "@/components/admin/ActivityRankingWidget"
 import { formatCLP, formatDate } from "@/lib/utils"
 import { Building2, Users, Zap, CreditCard } from "lucide-react"
 import Link from "next/link"
@@ -130,6 +132,11 @@ export default async function AdminDashboard() {
           </div>
         </div>
       )}
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-6">
+        <LeadsByCompanyChart />
+        <ActivityRankingWidget />
+      </div>
     </div>
   )
 }

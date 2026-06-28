@@ -89,6 +89,9 @@ src/
 │       │   ├── clients/                                  # GET lista, POST crear empresa cliente
 │       │   │   └── [companyId]/activities/               # GET+POST actividades de cliente
 │       │   │       └── [activityId]/                     # DELETE actividad
+│       │   ├── dashboard/
+│       │   │   ├── leads-by-company/  # GET ?days=7|15|30 — leads abiertos/cerrados por empresa
+│       │   │   └── activity-ranking/  # GET — top 10 empresas por actividad total
 │       │   └── agency/
 │       │       ├── tokens/            # CRUD tokens webhook agencia
 │       │       ├── leads/[id]/{stage,activities,tasks,custom-field-values}/
@@ -925,6 +928,26 @@ const d = new Date(isoString)
 const pad = (n) => String(n).padStart(2, "0")
 `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 ```
+
+## Dashboard admin — widgets de analítica
+
+Ambos widgets son visibles para `super_admin` y `agency_member` (no contienen datos financieros).
+Ubicados en `src/app/admin/page.tsx` debajo de las secciones de pagos.
+
+### Widget 1 — Gráfico de leads por cliente (`LeadsByCompanyChart`)
+- Componente: `src/components/admin/LeadsByCompanyChart.tsx` — `"use client"`
+- API: `GET /api/admin/dashboard/leads-by-company?days=7` (también acepta 15 y 30)
+- BarChart apilado de recharts: azul (indigo) = abiertos, verde (emerald) = cerrados
+- Selector de período en el encabezado: cambia datos con fetch client-side sin recargar la página
+- Empresas sin leads en el período no aparecen en el gráfico
+
+### Widget 2 — Ranking de actividad (`ActivityRankingWidget`)
+- Componente: `src/components/admin/ActivityRankingWidget.tsx` — `"use client"`
+- API: `GET /api/admin/dashboard/activity-ranking`
+- Top 10 empresas por actividad total (lead_activities + agency_client_activities)
+- Cada fila: posición, nombre, StatusBadge, barra de progreso proporcional, total + desglose
+- Si `agency_client_activities` no existe, la API maneja el error gracefully y cuenta solo lead_activities
+- Usa `recharts` (agregado como dependencia en esta feature)
 
 ## Convenciones UI
 - Sidebar oscuro (`#0F172A`), accent `#6366F1` (indigo-500), fondo `#F8FAFC`
