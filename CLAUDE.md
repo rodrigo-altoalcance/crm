@@ -21,6 +21,7 @@
 
 ### Rol agency_member — detalles
 - Invitado desde `/admin/team` (solo super_admin puede invitar)
+- El rol de miembros existentes puede cambiarse desde `/admin/team` con el ícono de lápiz — solo super_admin
 - Accede a todo `/admin/*` excepto `/admin/companies/[id]/payments` (proxy lo redirige a `/admin`)
 - API guard en rutas de pagos: `profile.role !== "super_admin"` — no cambiado
 - Frontend oculta completamente (no muestra placeholder):
@@ -32,6 +33,21 @@
 - Helper: `isAgencyStaff(profile)` — retorna `true` para `super_admin` y `agency_member`
 - RLS: función `is_agency_staff()` en BD (migración 014), usada en políticas de tablas de agencia
 - Sidebar: ítem "Equipo" solo visible para `super_admin` (prop `role` pasado desde layout)
+
+### Gestión de equipo de agencia (`/admin/team`)
+- Componente cliente: `AdminTeamView` (`src/app/admin/team/AdminTeamView.tsx`)
+- Lista miembros con roles `super_admin` y `agency_member`
+- **Invitar**: botón "Invitar miembro" → dialog con nombre, email y selector de rol
+- **Cambiar rol**: ícono lápiz por fila (oculto para el propio usuario) → dialog con selector → actualización optimista de la tabla
+- **Eliminar**: ícono papelera → `ConfirmDialog` → elimina de `auth.users` (cascada borra el perfil)
+
+API routes (todas requieren `super_admin`):
+```
+GET    /api/admin/team              → lista perfiles con role in ['super_admin', 'agency_member']
+POST   /api/admin/team              → invita miembro { full_name, email, role } → generateInviteLink + sendInvitationEmail
+PATCH  /api/admin/team/[userId]     → cambia rol { role } — verifica que el target tenga rol de agencia (anti-IDOR)
+DELETE /api/admin/team/[userId]     → elimina de auth.users (no se puede eliminar a uno mismo)
+```
 
 ## Estructura de rutas clave
 ```
