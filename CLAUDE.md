@@ -953,6 +953,46 @@ Ambos tienen selector de período **7 / 15 / 30 días** con fetch client-side (s
 - Cada fila: posición, nombre, StatusBadge, barra de progreso proporcional al máximo, total + desglose
 - Si `agency_client_activities` no existe aún, la API maneja el error gracefully y cuenta solo `lead_activities`
 
+## Franja de aviso de pago (`BillingAlertBanner`)
+
+Franja informativa descartable en la parte superior de `/dashboard/*` que advierte a los usuarios empresa cuando su pago está por vencer o ya venció.
+
+### Lógica de negocio
+- Fuente de datos: `companies.next_payment_date` (DATE, gestionada por super_admin via pagos)
+- Helper compartido: `src/lib/billing.ts` — `computeBillingStatus(nextPaymentDate)` → `{ status, fecha_vencimiento }`
+- Timezone de cálculo: **America/Santiago** (via `Intl.DateTimeFormat`)
+- `dias_restantes == 1` → `status: "yellow"` ("Tu pago vence mañana, DD/MM/YYYY")
+- `dias_restantes <= 0` → `status: "red"` ("Tu pago vence hoy" / "Tu pago está vencido desde el DD/MM/YYYY")
+- `dias_restantes > 1` o `next_payment_date null` → `status: null` (sin franja)
+- Nunca muestra `monthly_fee` ni `currency`
+
+### Endpoint
+```
+GET /api/dashboard/billing-status
+```
+- Auth: sesión Supabase — `company_id` derivado de `profile.company_id` o cookie `impersonated_company`
+- Devuelve solo `{ status: 'yellow' | 'red' | null, fecha_vencimiento: string | null }`
+- No expone datos financieros
+
+### Componentes y archivos
+| Archivo | Rol |
+|---------|-----|
+| `src/lib/billing.ts` | Helper `computeBillingStatus()` — usado por layout y endpoint |
+| `src/app/api/dashboard/billing-status/route.ts` | Endpoint dedicado |
+| `src/components/dashboard/BillingAlertBanner.tsx` | Franja visual, `"use client"` |
+| `src/app/dashboard/layout.tsx` | Calcula status server-side y pasa props |
+| `src/components/dashboard/DashboardShell.tsx` | Renderiza el banner entre ImpersonationBanner y TopBar |
+
+### Comportamiento de dismiss
+- Guardado en `localStorage` con clave `billing_alert_${userId}`
+- Valor: `{ date: "YYYY-MM-DD", status: "yellow" | "red" }` — fecha en zona Santiago
+- Expira automáticamente al cambiar de día (se compara con hoy en Santiago al montar)
+- Si el estado escala de "yellow" a "red" el mismo día, reaparece aunque ya se haya cerrado
+- El dismiss es por usuario/navegador — no persiste entre dispositivos (aceptable)
+
+### Desaparece automáticamente
+Cuando el super_admin registra un pago en `/api/admin/companies/[id]/payments`, `next_payment_date` avanza al próximo ciclo. En el siguiente render del layout de dashboard, `computeBillingStatus` devuelve `null` y la franja deja de mostrarse para todos los usuarios.
+
 ## Convenciones UI
 - Sidebar oscuro (`#0F172A`), accent `#6366F1` (indigo-500), fondo `#F8FAFC`
 - Toasts: `toast.success/error()` de sonner

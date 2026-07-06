@@ -4,15 +4,28 @@ import { useState } from "react"
 import { DashboardSidebar } from "./DashboardSidebar"
 import { TopBar } from "@/components/shared/TopBar"
 import { ImpersonationBanner } from "./ImpersonationBanner"
+import { BillingAlertBanner } from "./BillingAlertBanner"
+import type { BillingStatus } from "@/lib/billing"
 
 interface DashboardShellProps {
   children: React.ReactNode
   userName: string
   companyName: string
   isImpersonating: boolean
+  billingStatus: BillingStatus
+  billingFecha: string | null
+  userId: string
 }
 
-export function DashboardShell({ children, userName, companyName, isImpersonating }: DashboardShellProps) {
+export function DashboardShell({
+  children,
+  userName,
+  companyName,
+  isImpersonating,
+  billingStatus,
+  billingFecha,
+  userId,
+}: DashboardShellProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   return (
@@ -25,6 +38,7 @@ export function DashboardShell({ children, userName, companyName, isImpersonatin
       />
       <div className="flex-1 flex flex-col min-w-0 overflow-auto">
         {isImpersonating && <ImpersonationBanner companyName={companyName} />}
+        <BillingAlertBanner status={billingStatus} fechaVencimiento={billingFecha} userId={userId} />
         <TopBar userName={userName} onMenuOpen={() => setMobileMenuOpen(true)} />
         <main className="flex-1">{children}</main>
       </div>

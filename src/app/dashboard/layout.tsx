@@ -3,6 +3,7 @@ import { cookies } from "next/headers"
 import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/auth/getProfile"
 import { DashboardShell } from "@/components/dashboard/DashboardShell"
+import { computeBillingStatus } from "@/lib/billing"
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -23,13 +24,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
     isImpersonating = true
   }
 
+  let billingStatus: ReturnType<typeof computeBillingStatus> | null = null
+
   if (companyId) {
     const { data: company } = await supabase
       .from("companies")
-      .select("name")
+      .select("name, next_payment_date")
       .eq("id", companyId)
       .single()
     companyName = company?.name || ""
+    billingStatus = computeBillingStatus(company?.next_payment_date ?? null)
   }
 
   return (
@@ -37,6 +41,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
       userName={profile.full_name}
       companyName={companyName}
       isImpersonating={isImpersonating}
+      billingStatus={billingStatus?.status ?? null}
+      billingFecha={billingStatus?.fecha_vencimiento ?? null}
+      userId={profile.id}
     >
       {children}
     </DashboardShell>
