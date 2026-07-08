@@ -9,7 +9,7 @@ const payloadSchema = z.object({
   email: z.string().email().optional(),
   phone: z.string().optional(),
   message: z.string().optional(),
-  source: z.enum(["meta", "calendly", "manual"]).optional(),
+  source: z.string().optional(),
 }).passthrough()
 
 export async function POST(request: Request, { params }: { params: Promise<{ token: string }> }) {
@@ -62,7 +62,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   const email = mapped.email || mapped.correo || ""
   const phone = mapped.phone || mapped.telefono || mapped.fono || ""
   const message = mapped.message || mapped.mensaje || ""
-  const source = (mapped.source || mapped.origen || "meta") as "meta" | "calendly" | "manual"
+  const source = (mapped.source || mapped.origen || "meta").trim().toLowerCase()
 
   // Auto-extract special fields into custom_fields if not already mapped
   if (!customFields.empresa && (mapped.empresa || rawBody.empresa)) {
@@ -113,7 +113,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
       email: email || `noemail+${Date.now()}@placeholder.com`,
       phone: phone || null,
       message: message || null,
-      source: ["meta", "calendly", "manual"].includes(source) ? source : "meta",
+      source,
       custom_fields: customFields,
       scheduled_at: scheduledAt,
     })

@@ -465,6 +465,14 @@ SELECT id, company_id, role, full_name FROM profiles
 ### Campos soportados en el webhook
 Campos estándar (van a columnas del lead): `first_name/nombre`, `last_name/apellido`, `email/correo`, `phone/telefono/fono`, `message/mensaje`, `source/origen`
 
+### Campo `source` — texto libre (webhook de leads, contexto empresa)
+- `leads.source` es `text` sin restricción — el CHECK constraint `leads_source_check` (limitaba a `meta`/`calendly`/`manual`) fue eliminado en migración `015`
+- El webhook (`/api/webhook/leads/[token]/route.ts`) ya **no** valida `source` contra un whitelist — acepta cualquier string
+- **Siempre** se normaliza con `.trim().toLowerCase()` antes de insertar, para evitar que `"Google"`, `"google "` y `"GOOGLE"` cuenten como orígenes distintos en reportes/dashboard
+- `LeadSource` en `src/types/database.ts` es ahora `string` (antes unión fija de 3 valores)
+- `NewLeadForm.tsx` (creación manual de lead) sigue con su `<Select>` de 3 opciones fijas — no se tocó, sigue siendo válido porque el campo en BD acepta cualquier string
+- **Pendiente (fuera de esta sesión)**: `/api/webhook/agency/[token]/route.ts` tiene el mismo whitelist hardcodeado a nivel de código (sin CHECK constraint en `agency_leads.source`, así que ahí el fix es solo de código)
+
 Campos especiales (van a `custom_fields` jsonb, auto-detectados sin mapeo):
 - `empresa` — nombre de la empresa del lead
 - `fecha_agenda` — fecha de la cita/reunión agendada
@@ -805,6 +813,7 @@ Header con nombre, StatusBadge, fee mensual, y botones de acceso rápido:
 | 010 | Google Calendar: tasks.due_date y agency_tasks.due_date a TIMESTAMPTZ, tabla user_google_calendar_tokens, columna google_calendar_event_id en ambas tablas de tareas |
 | 011 | agency_client_activities — historial de actividades por empresa cliente |
 | 014 | agency_member role — CHECK constraint, is_agency_staff(), políticas RLS actualizadas |
+| 015 | Elimina CHECK constraint `leads_source_check` — `leads.source` queda como texto libre |
 
 ## Sistema de notificaciones in-app
 
