@@ -12,7 +12,7 @@ const sourceLabels: Record<string, { label: string; color: string }> = {
 }
 
 export function LeadCard({ lead, basePath = "/dashboard/leads" }: { lead: Lead; basePath?: string }) {
-  const source = sourceLabels[lead.source] || sourceLabels.manual
+  const source = sourceLabels[lead.source] || { label: lead.source, color: "secondary" }
   const lastComment = (lead as any).last_comment as string | null | undefined
 
   return (

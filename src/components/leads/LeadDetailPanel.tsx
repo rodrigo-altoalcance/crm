@@ -181,7 +181,7 @@ export function LeadDetailPanel({ lead, stages, teamMembers, profile, apiPrefix 
               {lead.first_name} {lead.last_name}
             </CardTitle>
             <Badge variant={lead.source === "meta" ? "info" : lead.source === "calendly" ? "warning" : "secondary"}>
-              {sourceLabels[lead.source]}
+              {sourceLabels[lead.source] || lead.source}
             </Badge>
           </div>
         </CardHeader>

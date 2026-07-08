@@ -74,7 +74,7 @@ export default async function ClientDetailPage({
                       : "secondary"
                   }
                 >
-                  {sourceLabels[lead.source]}
+                  {sourceLabels[lead.source] || lead.source}
                 </Badge>
               </div>
             </CardHeader>
