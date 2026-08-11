@@ -3,8 +3,10 @@ import { getProfile } from "@/lib/auth/getProfile"
 import { cookies } from "next/headers"
 import { StatCard } from "@/components/admin/StatCard"
 import { formatDate } from "@/lib/utils"
+import { getWeekRangeSantiago } from "@/lib/dateRanges"
 import { Zap, CheckSquare, Users, TrendingUp } from "lucide-react"
 import { redirect } from "next/navigation"
+import { MonthlyLeadsCharts } from "@/components/dashboard/MonthlyLeadsCharts"
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -18,6 +20,7 @@ export default async function DashboardPage() {
   if (!companyId) redirect("/login")
 
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+  const weekRange = getWeekRangeSantiago()
 
   // Fetch final stage IDs and lead IDs separately to avoid subquery issues
   const { data: finalStages } = await supabase
@@ -72,9 +75,18 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
         <StatCard title="Total leads" value={totalLeads || 0} icon={<Zap className="w-5 h-5" />} />
-        <StatCard title="Leads esta semana" value={weekLeads || 0} icon={<TrendingUp className="w-5 h-5" />} />
+        <StatCard
+          title="Leads esta semana"
+          value={weekLeads || 0}
+          description={weekRange.label}
+          icon={<TrendingUp className="w-5 h-5" />}
+        />
         <StatCard title="Clientes cerrados" value={closedLeads || 0} icon={<Users className="w-5 h-5" />} />
         <StatCard title="Tareas pendientes" value={pendingTasks || 0} icon={<CheckSquare className="w-5 h-5" />} />
+      </div>
+
+      <div className="mb-8">
+        <MonthlyLeadsCharts />
       </div>
 
       <div className="bg-white rounded-xl border shadow-sm p-6">

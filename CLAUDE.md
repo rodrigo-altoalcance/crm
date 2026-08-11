@@ -1002,6 +1002,27 @@ GET /api/dashboard/billing-status
 ### Desaparece automáticamente
 Cuando el super_admin registra un pago en `/api/admin/companies/[id]/payments`, `next_payment_date` avanza al próximo ciclo. En el siguiente render del layout de dashboard, `computeBillingStatus` devuelve `null` y la franja deja de mostrarse para todos los usuarios.
 
+## Dashboard empresa — rango de la semana y gráficos mensuales (`/dashboard`)
+
+### Card "Leads esta semana" — rango de fechas
+- `StatCard` recibe `description={weekRange.label}` con formato `"DD MMM – DD MMM"` (p.ej. `"05 ago – 11 ago"`)
+- Ventana móvil de 7 días: hoy - 6 días hasta hoy inclusive, **no** semana calendario lunes-domingo
+- Calculado con `getWeekRangeSantiago()` en `src/lib/dateRanges.ts`, sobre calendario America/Santiago
+- El número de la card (`weekLeads`) sigue calculándose igual que antes (`Date.now() - 7*24h`, ventana absoluta) — no se tocó esa query. El label es una aproximación en calendario Santiago; en el borde del día puede haber una diferencia de pocas horas entre el número y el rango mostrado
+
+### Helper `src/lib/dateRanges.ts`
+- `getWeekRangeSantiago()` → `{ startDate, endDate, label }` para la card de arriba
+- `getMonthBucketsSantiago(months)` → array de `{ key, label, startDate, nextMonthStart }`, contando hacia atrás desde el mes actual incluido, calendario Santiago
+- Todo el cómputo de fecha vive server-side (page.tsx / API routes) — los componentes client solo reciben strings ya formateados, para evitar duplicar lógica de timezone en el browser
+
+### Gráficos "Leads por mes" y "Clientes cerrados por mes"
+- Componente: `src/components/dashboard/MonthlyLeadsCharts.tsx` — `"use client"`, usa `recharts` (ya era dependencia del proyecto, reutiliza el estilo de `LeadsByCompanyChart`)
+- Un solo selector de píldoras (3/6/9/12 meses, default 6) controla ambos gráficos con un solo fetch
+- API: `GET /api/dashboard/leads-monthly?months=N` — usa `createClient()` (RLS), scoped por `company_id` (patrón estándar de impersonación)
+- **"Leads por mes"**: `leads.created_at` agrupado por mes (calendario Santiago)
+- **"Clientes cerrados por mes"**: NO existe columna `closed_at` en `leads`. Se usa `lead_activities` con `type='lead_closed'` — se inserta automáticamente cuando un lead se mueve a una etapa `is_final=true` (`/api/leads/[id]/stage`). Para cada lead actualmente en etapa final de la empresa, se toma su evento `lead_closed` más reciente y se agrupa por mes de ese `created_at`. Casos borde: si un lead fue cerrado más de una vez solo cuenta la última vez; leads cerrados antes de que existiera este logging (o cerrados directamente sin pasar por `/stage`) no tienen evento y no se cuentan en ningún mes
+- Bucketing de ambos gráficos se hace convirtiendo cada timestamp a su fecha de calendario en America/Santiago (`Intl.DateTimeFormat("en-CA", {timeZone: "America/Santiago"})`) antes de compararlo contra los límites del bucket — comparar timestamps UTC crudos contra fechas Santiago sin esta conversión desalinea los bordes de mes
+
 ## Convenciones UI
 - Sidebar oscuro (`#0F172A`), accent `#6366F1` (indigo-500), fondo `#F8FAFC`
 - Toasts: `toast.success/error()` de sonner
