@@ -1023,6 +1023,27 @@ Cuando el super_admin registra un pago en `/api/admin/companies/[id]/payments`, 
 - **"Clientes cerrados por mes"**: NO existe columna `closed_at` en `leads`. Se usa `lead_activities` con `type='lead_closed'` — se inserta automáticamente cuando un lead se mueve a una etapa `is_final=true` (`/api/leads/[id]/stage`). Para cada lead actualmente en etapa final de la empresa, se toma su evento `lead_closed` más reciente y se agrupa por mes de ese `created_at`. Casos borde: si un lead fue cerrado más de una vez solo cuenta la última vez; leads cerrados antes de que existiera este logging (o cerrados directamente sin pasar por `/stage`) no tienen evento y no se cuentan en ningún mes
 - Bucketing de ambos gráficos se hace convirtiendo cada timestamp a su fecha de calendario en America/Santiago (`Intl.DateTimeFormat("en-CA", {timeZone: "America/Santiago"})`) antes de compararlo contra los límites del bucket — comparar timestamps UTC crudos contra fechas Santiago sin esta conversión desalinea los bordes de mes
 
+## Bloqueo de empresa suspendida (`companies.status = 'inactive'`)
+
+### Causa raíz del bug original
+`companies.status` (`'active' | 'inactive' | 'trial'`, CHECK constraint de `001_initial_schema.sql`) **siempre se guardó correctamente** desde `/admin` — `PATCH /api/admin/companies/[id]` ya incluía `status` en su whitelist. El bug era que **ningún punto del flujo de acceso lo leía**: `proxy.ts` solo verificaba `role` + cookie de impersonación, `dashboard/layout.tsx` solo consultaba `companies` para `name`/`next_payment_date`, y ninguna ruta `/api/dashboard/*` lo chequeaba. No existe un valor `"suspended"` separado — el estado que bloquea es `status === "inactive"` (constante `SUSPENDED_COMPANY_STATUS`).
+
+### Alcance del bloqueo
+- Bloquea solo a usuarios reales de la empresa (`company_admin`, `seller`).
+- **No** bloquea a `super_admin`/`agency_member` impersonando — la agencia sigue pudiendo administrar/reactivar la cuenta desde `/admin` y ver su dashboard vía impersonación.
+- Es puramente informativo: el mensaje menciona un plazo de 30 días para eliminación, pero **no existe ningún cron/lógica de borrado automático asociado** — la eliminación es manual.
+
+### Implementación
+- Helper `src/lib/auth/companyStatus.ts`: `SUSPENDED_COMPANY_STATUS`, `SUSPENDED_COMPANY_MESSAGE`, `isCompanySuspended(supabase, companyId)`
+- **`src/proxy.ts`** (bloqueo principal, a nivel de sesión): la query de `profiles` ahora trae también `company_id`; para roles no-agencia se consulta `companies.status` y:
+  - `pathname` bajo `/api/dashboard/*` → `403 json` con `SUSPENDED_COMPANY_MESSAGE`
+  - `pathname` bajo `/dashboard/*`, `/` o `/login` → redirect a `/cuenta-suspendida`
+  - Si la empresa se reactiva y el usuario sigue en `/cuenta-suspendida` → redirect de vuelta a `/dashboard` (o `/admin` si es rol de agencia)
+  - Una sesión abierta se corta en el siguiente request — no requiere invalidación activa
+- **`/cuenta-suspendida`** — página standalone (`src/app/cuenta-suspendida/page.tsx` + `SuspendedAccountView.tsx`, `"use client"`), fuera de `/dashboard` y `/admin` para no depender de sus layouts. Reutiliza `EmptyState` + `Button`, con botón "Cerrar sesión" (mismo patrón que `TopBar.tsx`)
+- **Defensa en profundidad**: `GET /api/dashboard/billing-status` y `GET /api/dashboard/leads-monthly` también llaman a `isCompanySuspended()` directamente y devuelven 403 — independiente del proxy, por si se agregan rutas nuevas bajo `/api/dashboard/*` sin pasar por el guard central
+- Sin cambios de BD/RLS — `'inactive'` ya era un valor válido del CHECK constraint existente
+
 ## Convenciones UI
 - Sidebar oscuro (`#0F172A`), accent `#6366F1` (indigo-500), fondo `#F8FAFC`
 - Toasts: `toast.success/error()` de sonner

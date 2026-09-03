@@ -1,5 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { updateSession } from "@/lib/supabase/middleware"
+import { SUSPENDED_COMPANY_STATUS, SUSPENDED_COMPANY_MESSAGE } from "@/lib/auth/companyStatus"
+
+const SUSPENDED_PATH = "/cuenta-suspendida"
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -15,21 +18,56 @@ export async function proxy(request: NextRequest) {
     return supabaseResponse
   }
 
-  // Get role — fall back gracefully if query fails
+  // Get role + company_id — fall back gracefully if query fails
   let role: string | undefined
+  let companyId: string | null | undefined
   try {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role")
+      .select("role, company_id")
       .eq("id", user.id)
       .single()
     role = profile?.role
+    companyId = profile?.company_id
   } catch {
     // If we can't determine role, let page-level auth handle it
     return supabaseResponse
   }
 
   const isAgencyRole = role === "super_admin" || role === "agency_member"
+
+  // Empresa suspendida: solo bloquea a usuarios reales de esa empresa
+  // (company_admin / seller). No bloquea a super_admin/agency_member
+  // impersonando — la agencia sigue pudiendo administrar la cuenta.
+  let isCompanySuspended = false
+  if (!isAgencyRole && companyId) {
+    try {
+      const { data: company } = await supabase
+        .from("companies")
+        .select("status")
+        .eq("id", companyId)
+        .single()
+      isCompanySuspended = company?.status === SUSPENDED_COMPANY_STATUS
+    } catch {
+      // Si falla la consulta, no bloqueamos por falso positivo — el
+      // layout/rutas del dashboard igual reintentan el check.
+    }
+  }
+
+  if (isCompanySuspended && pathname.startsWith("/api/dashboard")) {
+    return NextResponse.json({ error: SUSPENDED_COMPANY_MESSAGE }, { status: 403 })
+  }
+
+  if (isCompanySuspended && pathname !== SUSPENDED_PATH) {
+    if (pathname === "/" || pathname === "/login" || pathname.startsWith("/dashboard")) {
+      return NextResponse.redirect(new URL(SUSPENDED_PATH, origin))
+    }
+  }
+
+  // La empresa ya no está suspendida: no dejar a nadie varado en la pantalla de bloqueo
+  if (!isCompanySuspended && pathname === SUSPENDED_PATH) {
+    return NextResponse.redirect(new URL(isAgencyRole ? "/admin" : "/dashboard", origin))
+  }
 
   // Root path: redirect based on role
   if (pathname === "/") {

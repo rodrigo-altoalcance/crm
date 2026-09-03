@@ -3,6 +3,7 @@ import { cookies } from "next/headers"
 import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/auth/getProfile"
 import { computeBillingStatus } from "@/lib/billing"
+import { isCompanySuspended, SUSPENDED_COMPANY_MESSAGE } from "@/lib/auth/companyStatus"
 
 export async function GET() {
   const supabase = await createClient()
@@ -13,6 +14,12 @@ export async function GET() {
   const impersonatedId = cookieStore.get("impersonated_company")?.value
   const companyId = profile.role === "super_admin" ? impersonatedId : profile.company_id
   if (!companyId) return NextResponse.json({ error: "No company" }, { status: 403 })
+
+  // Defensa en profundidad — el bloqueo principal ocurre en proxy.ts,
+  // pero solo aplica a usuarios reales de la empresa, no a super_admin impersonando.
+  if (profile.role !== "super_admin" && (await isCompanySuspended(supabase, companyId))) {
+    return NextResponse.json({ error: SUSPENDED_COMPANY_MESSAGE }, { status: 403 })
+  }
 
   const { data, error } = await supabase
     .from("companies")
