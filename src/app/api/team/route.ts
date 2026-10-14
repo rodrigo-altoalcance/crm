@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/auth/getProfile"
-import { getDefaultPermissions } from "@/lib/auth/roles"
+import { getDefaultPermissions, isAgencyStaff } from "@/lib/auth/roles"
 import { generateInviteLink } from "@/lib/auth/invite"
 import { sendInvitationEmail } from "@/lib/email/invitation"
 
@@ -13,7 +13,7 @@ export async function GET() {
 
   const cookieStore = await cookies()
   const impersonatedId = cookieStore.get("impersonated_company")?.value
-  const companyId = profile.role === "super_admin" ? impersonatedId : profile.company_id
+  const companyId = isAgencyStaff(profile) ? impersonatedId : profile.company_id
   if (!companyId) return NextResponse.json({ error: "No company" }, { status: 403 })
 
   const { data, error } = await supabase
@@ -33,10 +33,10 @@ export async function POST(request: Request) {
 
   const cookieStore = await cookies()
   const impersonatedId = cookieStore.get("impersonated_company")?.value
-  const companyId = profile.role === "super_admin" ? impersonatedId : profile.company_id
+  const companyId = isAgencyStaff(profile) ? impersonatedId : profile.company_id
   if (!companyId) return NextResponse.json({ error: "No company" }, { status: 403 })
 
-  if (profile.role !== "company_admin" && profile.role !== "super_admin") {
+  if (profile.role !== "company_admin" && !isAgencyStaff(profile)) {
     return NextResponse.json({ error: "Solo el admin de empresa puede invitar miembros" }, { status: 403 })
   }
 

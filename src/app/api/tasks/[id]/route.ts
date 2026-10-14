@@ -3,6 +3,7 @@ import { cookies } from "next/headers"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getProfile } from "@/lib/auth/getProfile"
+import { isAgencyStaff } from "@/lib/auth/roles"
 import { updateCalendarEvent, deleteCalendarEvent } from "@/lib/google-calendar"
 
 export async function PATCH(
@@ -17,7 +18,7 @@ export async function PATCH(
   const cookieStore = await cookies()
   const impersonatedId = cookieStore.get("impersonated_company")?.value
   const companyId =
-    profile.role === "super_admin" ? impersonatedId : profile.company_id
+    isAgencyStaff(profile) ? impersonatedId : profile.company_id
 
   let existingQuery = supabase
     .from("tasks")
@@ -106,12 +107,12 @@ export async function DELETE(
   const profile = await getProfile(supabase)
   if (!profile) return NextResponse.json({ error: "No autorizado" }, { status: 401 })
 
-  if (profile.role !== "company_admin" && profile.role !== "super_admin") {
+  if (profile.role !== "company_admin" && !isAgencyStaff(profile)) {
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 })
   }
 
   const cookieStore2 = await cookies()
-  const companyId2 = profile.role === "super_admin"
+  const companyId2 = isAgencyStaff(profile)
     ? cookieStore2.get("impersonated_company")?.value
     : profile.company_id
 

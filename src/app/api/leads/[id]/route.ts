@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/auth/getProfile"
+import { isAgencyStaff } from "@/lib/auth/roles"
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -11,7 +12,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
 
   const cookieStore = await cookies()
   const impersonatedId = cookieStore.get("impersonated_company")?.value
-  const companyId = profile.role === "super_admin" ? impersonatedId : profile.company_id
+  const companyId = isAgencyStaff(profile) ? impersonatedId : profile.company_id
   if (!companyId) return NextResponse.json({ error: "No company" }, { status: 403 })
 
   const { data, error } = await supabase
@@ -33,7 +34,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   const cookieStore = await cookies()
   const impersonatedId = cookieStore.get("impersonated_company")?.value
-  const companyId = profile.role === "super_admin" ? impersonatedId : profile.company_id
+  const companyId = isAgencyStaff(profile) ? impersonatedId : profile.company_id
   if (!companyId) return NextResponse.json({ error: "No company" }, { status: 403 })
 
   const body = await request.json()
@@ -56,13 +57,13 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
   const supabase = await createClient()
   const profile = await getProfile(supabase)
   if (!profile) return NextResponse.json({ error: "No autorizado" }, { status: 401 })
-  if (profile.role !== "company_admin" && profile.role !== "super_admin") {
+  if (profile.role !== "company_admin" && !isAgencyStaff(profile)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
   const cookieStore = await cookies()
   const impersonatedId = cookieStore.get("impersonated_company")?.value
-  const companyId = profile.role === "super_admin" ? impersonatedId : profile.company_id
+  const companyId = isAgencyStaff(profile) ? impersonatedId : profile.company_id
   if (!companyId) return NextResponse.json({ error: "No company" }, { status: 403 })
 
   const { error } = await supabase.from("leads").delete().eq("id", id).eq("company_id", companyId)

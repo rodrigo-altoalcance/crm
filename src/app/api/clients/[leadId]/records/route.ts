@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/auth/getProfile"
+import { isAgencyStaff } from "@/lib/auth/roles"
 
 export async function GET(
   _: Request,
@@ -13,10 +14,9 @@ export async function GET(
   if (!profile) return NextResponse.json({ error: "No autorizado" }, { status: 401 })
 
   const cookieStore = await cookies()
-  const companyId =
-    profile.role === "super_admin"
-      ? cookieStore.get("impersonated_company")?.value
-      : profile.company_id
+  const companyId = isAgencyStaff(profile)
+    ? cookieStore.get("impersonated_company")?.value
+    : profile.company_id
   if (!companyId) return NextResponse.json({ error: "No company" }, { status: 403 })
 
   // Verify lead belongs to this company
@@ -49,10 +49,9 @@ export async function POST(
   if (!profile) return NextResponse.json({ error: "No autorizado" }, { status: 401 })
 
   const cookieStore = await cookies()
-  const companyId =
-    profile.role === "super_admin"
-      ? cookieStore.get("impersonated_company")?.value
-      : profile.company_id
+  const companyId = isAgencyStaff(profile)
+    ? cookieStore.get("impersonated_company")?.value
+    : profile.company_id
   if (!companyId) return NextResponse.json({ error: "No company" }, { status: 403 })
 
   // Verify lead belongs to this company

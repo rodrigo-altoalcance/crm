@@ -3,7 +3,7 @@ import { cookies } from "next/headers"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getProfile } from "@/lib/auth/getProfile"
-import { canViewAllLeads } from "@/lib/auth/roles"
+import { canViewAllLeads, isAgencyStaff } from "@/lib/auth/roles"
 import { createCalendarEvent } from "@/lib/google-calendar"
 
 export async function GET(request: Request) {
@@ -13,7 +13,7 @@ export async function GET(request: Request) {
 
   const cookieStore = await cookies()
   const companyId =
-    profile.role === "super_admin"
+    isAgencyStaff(profile)
       ? cookieStore.get("impersonated_company")?.value
       : profile.company_id
   if (!companyId) return NextResponse.json({ error: "No company" }, { status: 403 })
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
 
   const cookieStore = await cookies()
   const companyId =
-    profile.role === "super_admin"
+    isAgencyStaff(profile)
       ? cookieStore.get("impersonated_company")?.value
       : profile.company_id
   if (!companyId) return NextResponse.json({ error: "No company" }, { status: 403 })

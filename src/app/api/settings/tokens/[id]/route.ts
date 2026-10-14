@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/auth/getProfile"
+import { isAgencyStaff } from "@/lib/auth/roles"
 
 export async function DELETE(
   _: Request,
@@ -16,7 +17,7 @@ export async function DELETE(
 
   const cookieStore = await cookies()
   const companyId =
-    profile.role === "super_admin"
+    isAgencyStaff(profile)
       ? cookieStore.get("impersonated_company")?.value
       : profile.company_id
   if (!companyId) return NextResponse.json({ error: "No company" }, { status: 403 })
@@ -44,7 +45,7 @@ export async function POST(
 
   const cookieStore = await cookies()
   const companyId =
-    profile.role === "super_admin"
+    isAgencyStaff(profile)
       ? cookieStore.get("impersonated_company")?.value
       : profile.company_id
   if (!companyId) return NextResponse.json({ error: "No company" }, { status: 403 })

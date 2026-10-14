@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/auth/getProfile"
+import { isAgencyStaff } from "@/lib/auth/roles"
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: leadId } = await params
@@ -11,7 +12,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   const cookieStore = await cookies()
   const impersonatedId = cookieStore.get("impersonated_company")?.value
-  const companyId = profile.role === "super_admin" ? impersonatedId : profile.company_id
+  const companyId = isAgencyStaff(profile) ? impersonatedId : profile.company_id
   if (!companyId) return NextResponse.json({ error: "No company" }, { status: 403 })
 
   const { field_id, valor } = await request.json()

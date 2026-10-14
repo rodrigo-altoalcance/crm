@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/auth/getProfile"
+import { isAgencyStaff } from "@/lib/auth/roles"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { TeamView } from "@/components/team/TeamView"
@@ -11,7 +12,7 @@ export default async function TeamPage() {
 
   const cookieStore = await cookies()
   const companyId =
-    profile.role === "super_admin"
+    isAgencyStaff(profile)
       ? cookieStore.get("impersonated_company")?.value
       : profile.company_id
   if (!companyId) redirect("/login")

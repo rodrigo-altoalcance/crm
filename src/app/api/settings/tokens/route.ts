@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/auth/getProfile"
+import { isAgencyStaff } from "@/lib/auth/roles"
 
 export async function GET() {
   const supabase = await createClient()
@@ -10,7 +11,7 @@ export async function GET() {
 
   const cookieStore = await cookies()
   const impersonatedId = cookieStore.get("impersonated_company")?.value
-  const companyId = profile.role === "super_admin" ? impersonatedId : profile.company_id
+  const companyId = isAgencyStaff(profile) ? impersonatedId : profile.company_id
   if (!companyId) return NextResponse.json({ error: "No company" }, { status: 403 })
 
   const { data } = await supabase.from("webhook_tokens").select("*").eq("company_id", companyId).order("created_at")
@@ -24,7 +25,7 @@ export async function POST(request: Request) {
 
   const cookieStore = await cookies()
   const impersonatedId = cookieStore.get("impersonated_company")?.value
-  const companyId = profile.role === "super_admin" ? impersonatedId : profile.company_id
+  const companyId = isAgencyStaff(profile) ? impersonatedId : profile.company_id
   if (!companyId) return NextResponse.json({ error: "No company" }, { status: 403 })
 
   if (profile.role === "seller") return NextResponse.json({ error: "Sin permiso" }, { status: 403 })
@@ -47,7 +48,7 @@ export async function PATCH(request: Request) {
 
   const cookieStore = await cookies()
   const impersonatedId = cookieStore.get("impersonated_company")?.value
-  const companyId = profile.role === "super_admin" ? impersonatedId : profile.company_id
+  const companyId = isAgencyStaff(profile) ? impersonatedId : profile.company_id
   if (!companyId) return NextResponse.json({ error: "No company" }, { status: 403 })
 
   if (profile.role === "seller") return NextResponse.json({ error: "Sin permiso" }, { status: 403 })

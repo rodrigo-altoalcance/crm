@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/auth/getProfile"
+import { isAgencyStaff } from "@/lib/auth/roles"
 import { cookies } from "next/headers"
 import { notFound, redirect } from "next/navigation"
 import Link from "next/link"
@@ -16,7 +17,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
 
   const cookieStore = await cookies()
   const impersonatedId = cookieStore.get("impersonated_company")?.value
-  const companyId = profile.role === "super_admin" ? impersonatedId : profile.company_id
+  const companyId = isAgencyStaff(profile) ? impersonatedId : profile.company_id
   if (!companyId) redirect("/login")
 
   const [{ data: lead }, { data: activities }, { data: tasks }, { data: stages }, { data: teamMembers }, { data: customFields }, { data: fieldValueRows }] = await Promise.all([

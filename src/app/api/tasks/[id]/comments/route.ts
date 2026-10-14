@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/auth/getProfile"
+import { isAgencyStaff } from "@/lib/auth/roles"
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -27,12 +28,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const cookieStore = await cookies()
   const companyId =
-    profile.role === "super_admin"
+    isAgencyStaff(profile)
       ? cookieStore.get("impersonated_company")?.value
       : profile.company_id
 
   // Non-super_admin must have a companyId
-  if (!companyId && profile.role !== "super_admin") {
+  if (!companyId && !isAgencyStaff(profile)) {
     return NextResponse.json({ error: "No company" }, { status: 403 })
   }
 

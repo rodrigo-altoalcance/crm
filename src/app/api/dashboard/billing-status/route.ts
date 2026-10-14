@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/auth/getProfile"
+import { isAgencyStaff } from "@/lib/auth/roles"
 import { computeBillingStatus } from "@/lib/billing"
 import { isCompanySuspended, SUSPENDED_COMPANY_MESSAGE } from "@/lib/auth/companyStatus"
 
@@ -12,7 +13,7 @@ export async function GET() {
 
   const cookieStore = await cookies()
   const impersonatedId = cookieStore.get("impersonated_company")?.value
-  const companyId = profile.role === "super_admin" ? impersonatedId : profile.company_id
+  const companyId = isAgencyStaff(profile) ? impersonatedId : profile.company_id
   if (!companyId) return NextResponse.json({ error: "No company" }, { status: 403 })
 
   // Defensa en profundidad — el bloqueo principal ocurre en proxy.ts,

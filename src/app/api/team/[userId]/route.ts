@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/auth/getProfile"
+import { isAgencyStaff } from "@/lib/auth/roles"
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ userId: string }> }) {
   const { userId } = await params
@@ -9,13 +10,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ us
   const profile = await getProfile(supabase)
   if (!profile) return NextResponse.json({ error: "No autorizado" }, { status: 401 })
 
-  if (profile.role !== "company_admin" && profile.role !== "super_admin") {
+  if (profile.role !== "company_admin" && !isAgencyStaff(profile)) {
     return NextResponse.json({ error: "Sin permiso" }, { status: 403 })
   }
 
   const cookieStore = await cookies()
   const impersonatedId = cookieStore.get("impersonated_company")?.value
-  const companyId = profile.role === "super_admin" ? impersonatedId : profile.company_id
+  const companyId = isAgencyStaff(profile) ? impersonatedId : profile.company_id
   if (!companyId) return NextResponse.json({ error: "No company" }, { status: 403 })
 
   const { permissions } = await request.json()
@@ -38,13 +39,13 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ userId:
   const profile = await getProfile(supabase)
   if (!profile) return NextResponse.json({ error: "No autorizado" }, { status: 401 })
 
-  if (profile.role !== "company_admin" && profile.role !== "super_admin") {
+  if (profile.role !== "company_admin" && !isAgencyStaff(profile)) {
     return NextResponse.json({ error: "Sin permiso" }, { status: 403 })
   }
 
   const cookieStore = await cookies()
   const impersonatedId = cookieStore.get("impersonated_company")?.value
-  const companyId = profile.role === "super_admin" ? impersonatedId : profile.company_id
+  const companyId = isAgencyStaff(profile) ? impersonatedId : profile.company_id
   if (!companyId) return NextResponse.json({ error: "No company" }, { status: 403 })
 
   const { error } = await supabase

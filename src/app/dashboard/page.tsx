@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/auth/getProfile"
+import { isAgencyStaff } from "@/lib/auth/roles"
 import { cookies } from "next/headers"
 import { StatCard } from "@/components/admin/StatCard"
 import { formatDate } from "@/lib/utils"
@@ -15,7 +16,7 @@ export default async function DashboardPage() {
 
   const cookieStore = await cookies()
   const impersonatedCompanyId = cookieStore.get("impersonated_company")?.value
-  const companyId = profile.role === "super_admin" ? impersonatedCompanyId : profile.company_id
+  const companyId = isAgencyStaff(profile) ? impersonatedCompanyId : profile.company_id
 
   if (!companyId) redirect("/login")
 

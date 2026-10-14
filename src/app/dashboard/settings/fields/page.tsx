@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/auth/getProfile"
+import { isAgencyStaff } from "@/lib/auth/roles"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { FieldsEditor } from "@/components/settings/FieldsEditor"
@@ -13,7 +14,7 @@ export default async function FieldsSettingsPage() {
 
   const cookieStore = await cookies()
   const impersonatedId = cookieStore.get("impersonated_company")?.value
-  const companyId = profile.role === "super_admin" ? impersonatedId : profile.company_id
+  const companyId = isAgencyStaff(profile) ? impersonatedId : profile.company_id
   if (!companyId) redirect("/login")
 
   const { data: fields } = await supabase

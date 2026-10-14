@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { cookies } from "next/headers"
 import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/auth/getProfile"
+import { isAgencyStaff } from "@/lib/auth/roles"
 import { DashboardShell } from "@/components/dashboard/DashboardShell"
 import { computeBillingStatus } from "@/lib/billing"
 
@@ -18,7 +19,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   let isImpersonating = false
   let companyName = ""
 
-  if (profile.role === "super_admin") {
+  if (isAgencyStaff(profile)) {
     if (!impersonatedCompanyId) redirect("/admin")
     companyId = impersonatedCompanyId
     isImpersonating = true

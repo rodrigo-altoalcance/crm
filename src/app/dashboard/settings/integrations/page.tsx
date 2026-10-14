@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getProfile } from "@/lib/auth/getProfile"
+import { isAgencyStaff } from "@/lib/auth/roles"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { WebhookConfig } from "@/components/settings/WebhookConfig"
@@ -19,7 +20,7 @@ export default async function IntegrationsSettingsPage() {
   if (!profile) redirect("/login")
 
   const cookieStore = await cookies()
-  const isImpersonating = profile.role === "super_admin"
+  const isImpersonating = isAgencyStaff(profile)
   const companyId = isImpersonating
     ? cookieStore.get("impersonated_company")?.value
     : profile.company_id
