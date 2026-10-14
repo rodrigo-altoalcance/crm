@@ -15,7 +15,7 @@ const DEFAULT_STAGES = [
 export async function POST() {
   const supabase = await createClient()
   const profile = await getProfile(supabase)
-  if (!profile || (profile.role !== "super_admin" && profile.role !== "agency_member")) {
+  if (!profile || (profile.role !== "super_admin")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 

@@ -14,7 +14,7 @@ import type { Role } from "@/types/database"
 const nav = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true, superAdminOnly: false },
   { href: "/admin/companies", label: "Usuario Empresa", icon: Building2, superAdminOnly: false },
-  { href: "/admin/leads", label: "Leads", icon: Zap, superAdminOnly: false },
+  { href: "/admin/leads", label: "Leads", icon: Zap, superAdminOnly: true },
   { href: "/admin/tasks", label: "Tareas", icon: CheckSquare, superAdminOnly: false },
   { href: "/admin/clients", label: "Clientes", icon: Users, superAdminOnly: false },
   { href: "/admin/team", label: "Equipo", icon: UserCog, superAdminOnly: true },
