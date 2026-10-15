@@ -3,20 +3,22 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { UserPlus, Trash2, Pencil } from "lucide-react"
+import { UserPlus, Trash2, Pencil, UserX, UserCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import type { Profile } from "@/types/database"
 
 type AgencyRole = "super_admin" | "agency_member"
+type TeamMember = Profile & { active: boolean }
 
 interface AdminTeamViewProps {
-  members: Profile[]
+  members: TeamMember[]
   currentUserId: string
 }
 
@@ -37,6 +39,11 @@ export function AdminTeamView({ members: initialMembers, currentUserId }: AdminT
   // Delete state
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [loadingDelete, setLoadingDelete] = useState(false)
+
+  // Deactivate / reactivate state
+  const [deactivatingId, setDeactivatingId] = useState<string | null>(null)
+  const [loadingDeactivate, setLoadingDeactivate] = useState(false)
+  const [loadingReactivateId, setLoadingReactivateId] = useState<string | null>(null)
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault()
@@ -114,7 +121,54 @@ export function AdminTeamView({ members: initialMembers, currentUserId }: AdminT
     }
   }
 
+  async function handleDeactivate() {
+    if (!deactivatingId) return
+    setLoadingDeactivate(true)
+    try {
+      const res = await fetch(`/api/admin/team/${deactivatingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: false }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        toast.error(data.error || "Error al desactivar")
+        return
+      }
+      setMembers((prev) => prev.map((m) => m.id === deactivatingId ? { ...m, active: false } : m))
+      toast.success("Miembro desactivado")
+    } catch {
+      toast.error("Error de red")
+    } finally {
+      setLoadingDeactivate(false)
+      setDeactivatingId(null)
+    }
+  }
+
+  async function handleReactivate(member: TeamMember) {
+    setLoadingReactivateId(member.id)
+    try {
+      const res = await fetch(`/api/admin/team/${member.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: true }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        toast.error(data.error || "Error al reactivar")
+        return
+      }
+      setMembers((prev) => prev.map((m) => m.id === member.id ? { ...m, active: true } : m))
+      toast.success("Miembro reactivado")
+    } catch {
+      toast.error("Error de red")
+    } finally {
+      setLoadingReactivateId(null)
+    }
+  }
+
   const deletingMember = members.find((m) => m.id === deletingId)
+  const deactivatingMember = members.find((m) => m.id === deactivatingId)
 
   return (
     <>
@@ -130,14 +184,15 @@ export function AdminTeamView({ members: initialMembers, currentUserId }: AdminT
             <TableRow>
               <TableHead>Miembro</TableHead>
               <TableHead>Rol</TableHead>
+              <TableHead>Estado</TableHead>
               <TableHead>Desde</TableHead>
-              <TableHead className="w-24" />
+              <TableHead className="w-32" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {members.length === 0 && (
               <TableRow>
-                <TableCell colSpan={4} className="text-center text-slate-500 py-12">
+                <TableCell colSpan={5} className="text-center text-slate-500 py-12">
                   No hay administradores
                 </TableCell>
               </TableRow>
@@ -168,6 +223,11 @@ export function AdminTeamView({ members: initialMembers, currentUserId }: AdminT
                     {member.role === "super_admin" ? "Administrador" : "Colaborador"}
                   </span>
                 </TableCell>
+                <TableCell>
+                  <Badge variant={member.active ? "success" : "secondary"}>
+                    {member.active ? "Activo" : "Inactivo"}
+                  </Badge>
+                </TableCell>
                 <TableCell className="text-sm text-slate-500">
                   {new Intl.DateTimeFormat("es-CL", { year: "numeric", month: "short", day: "numeric" }).format(new Date(member.created_at))}
                 </TableCell>
@@ -183,6 +243,28 @@ export function AdminTeamView({ members: initialMembers, currentUserId }: AdminT
                       >
                         <Pencil className="w-4 h-4" />
                       </Button>
+                      {member.active ? (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-slate-400 hover:text-amber-600"
+                          onClick={() => setDeactivatingId(member.id)}
+                          title="Desactivar"
+                        >
+                          <UserX className="w-4 h-4" />
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-slate-400 hover:text-emerald-600"
+                          onClick={() => handleReactivate(member)}
+                          disabled={loadingReactivateId === member.id}
+                          title="Reactivar"
+                        >
+                          <UserCheck className="w-4 h-4" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
@@ -292,6 +374,17 @@ export function AdminTeamView({ members: initialMembers, currentUserId }: AdminT
         confirmLabel="Eliminar"
         onConfirm={handleDelete}
         loading={loadingDelete}
+        variant="destructive"
+      />
+
+      <ConfirmDialog
+        open={!!deactivatingId}
+        onOpenChange={(open) => { if (!open) setDeactivatingId(null) }}
+        title="Desactivar miembro"
+        description={`¿Desactivar a ${deactivatingMember?.full_name}? Perderá acceso al panel de inmediato, pero podrás reactivarlo cuando quieras.`}
+        confirmLabel="Desactivar"
+        onConfirm={handleDeactivate}
+        loading={loadingDeactivate}
         variant="destructive"
       />
     </>

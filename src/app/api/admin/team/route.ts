@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getProfile } from "@/lib/auth/getProfile"
 import { sendInvitationEmail } from "@/lib/email/invitation"
+import { isUserActive } from "@/lib/auth/teamGuards"
 
 const ALLOWED_ROLES = ["super_admin", "agency_member"] as const
 
@@ -21,7 +22,17 @@ export async function GET() {
     .order("created_at")
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
+
+  const { data: authList } = await admin.auth.admin.listUsers({ perPage: 1000 })
+  const authById = new Map((authList?.users || []).map((u) => [u.id, u]))
+
+  const members = (data || []).map((member) => ({
+    ...member,
+    email: authById.get(member.id)?.email ?? "",
+    active: isUserActive(authById.get(member.id)),
+  }))
+
+  return NextResponse.json(members)
 }
 
 export async function POST(request: Request) {

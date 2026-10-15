@@ -43,11 +43,24 @@
 
 API routes (todas requieren `super_admin`):
 ```
-GET    /api/admin/team              → lista perfiles con role in ['super_admin', 'agency_member']
+GET    /api/admin/team              → lista perfiles con role in ['super_admin', 'agency_member'] + email + active (derivado de Supabase Auth)
 POST   /api/admin/team              → invita miembro { full_name, email, role } → generateInviteLink + sendInvitationEmail
-PATCH  /api/admin/team/[userId]     → cambia rol { role } — verifica que el target tenga rol de agencia (anti-IDOR)
+PATCH  /api/admin/team/[userId]     → { role } cambia rol, o { active: boolean } desactiva/reactiva — verifica que el target tenga rol de agencia (anti-IDOR)
 DELETE /api/admin/team/[userId]     → elimina de auth.users (no se puede eliminar a uno mismo)
 ```
+
+### Desactivar / reactivar miembros de agencia (`/admin/team`)
+- **No existe columna `active`/`status` en `profiles`** — el estado se deriva 100% de Supabase Auth (`user.banned_until`), sin migraciones ni RLS nuevas
+- Helper compartido: `src/lib/auth/teamGuards.ts`
+  - `isUserActive(authUser)` — `true` si no está baneado o el ban ya expiró
+  - `setUserBanned(admin, userId, banned)` — `admin.auth.admin.updateUserById(userId, { ban_duration: banned ? "876000h" : "none" })` (≈100 años = baneo efectivamente permanente, reversible)
+  - `isLastActiveSuperAdmin(admin, userId)` — recorre todos los `profiles.role = 'super_admin'` y sus `banned_until`, para bloquear desactivar/eliminar al último activo
+- **Por qué el baneo nativo basta para revocar la sesión de inmediato**: todo el proyecto usa `supabase.auth.getUser()` (en `proxy.ts` y en `getProfile()` de cada ruta) en vez de `getSession()` — `getUser()` siempre revalida contra el servidor de Supabase Auth, así que un usuario baneado deja de pasar la verificación en su siguiente request, sin esperar expiración del JWT y sin tocar `proxy.ts`
+- Reglas aplicadas en `PATCH /api/admin/team/[userId]` y `DELETE /api/admin/team/[userId]`:
+  - Nadie puede desactivarse/eliminarse a sí mismo (ya existía para delete/rol, se agregó para desactivar)
+  - No se puede desactivar ni eliminar al último `super_admin` activo
+  - Leads/tareas de agencia asignados a un miembro eliminado quedan sin responsable automáticamente (`ON DELETE SET NULL` ya existente) — no hay flujo de reasignación forzada
+- UI (`AdminTeamView.tsx`): columna "Estado" (`Badge` success/secondary), botón desactivar (ícono `UserX`, con `ConfirmDialog` reutilizado) y botón reactivar (ícono `UserCheck`, sin confirmación por no ser destructivo)
 
 ## Estructura de rutas clave
 ```
