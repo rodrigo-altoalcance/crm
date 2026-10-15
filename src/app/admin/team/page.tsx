@@ -1,9 +1,9 @@
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/auth/getProfile"
+import { isUserActive } from "@/lib/auth/teamGuards"
 import { redirect } from "next/navigation"
 import { AdminTeamView } from "./AdminTeamView"
-import type { Profile } from "@/types/database"
 
 export default async function AdminTeamPage() {
   const supabase = await createClient()
@@ -17,6 +17,14 @@ export default async function AdminTeamPage() {
     .in("role", ["super_admin", "agency_member"])
     .order("created_at")
 
+  const { data: authList } = await admin.auth.admin.listUsers({ perPage: 1000 })
+  const authById = new Map((authList?.users || []).map((u) => [u.id, u]))
+
+  const membersWithAuth = (members || []).map((member) => ({
+    ...member,
+    active: isUserActive(authById.get(member.id)),
+  }))
+
   return (
     <div className="p-8">
       <div className="mb-8">
@@ -26,7 +34,7 @@ export default async function AdminTeamPage() {
         </p>
       </div>
 
-      <AdminTeamView members={(members || []) as Profile[]} currentUserId={profile.id} />
+      <AdminTeamView members={membersWithAuth} currentUserId={profile.id} />
     </div>
   )
 }
